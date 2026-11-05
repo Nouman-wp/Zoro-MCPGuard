@@ -24,7 +24,12 @@ export const config = {
   /** Hosted deployments: fixed tokens survive restarts on platforms whose disk is wiped, and the public host is allowed on /mcp. */
   consoleToken: env('ZORO_CONSOLE_TOKEN'),
   gatewayToken: env('ZORO_GATEWAY_TOKEN'),
-  allowedHosts: env('ZORO_ALLOWED_HOSTS').split(',').map((h) => h.trim()).filter(Boolean),
+  /** Public hosts accepted on /mcp. Render sets RENDER_EXTERNAL_HOSTNAME on every web service, so it is added automatically. */
+  allowedHosts: [...env('ZORO_ALLOWED_HOSTS').split(','), env('RENDER_EXTERNAL_HOSTNAME')].map((h) => h.trim()).filter(Boolean),
+  /** Browser origins, besides webOrigin, allowed to call the API cross-origin. Comma-separated; `*` matches one hostname segment. */
+  corsOrigins: env('ZORO_CORS_ORIGINS').split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean),
+  /** Set on hosts whose disk is wiped on restart or redeploy (Render free instances): reported as a degraded dependency. */
+  ephemeralStorage: bool('ZORO_EPHEMERAL_STORAGE', false),
   publicUrl: env('ZORO_PUBLIC_URL', 'http://localhost:3000'),
   refreshIntervalSec: Number(env('ZORO_REFRESH_INTERVAL_SEC', '60')),
   approvalWaitSec: Number(env('ZORO_APPROVAL_WAIT_SEC', '45')),
@@ -60,5 +65,11 @@ export const config = {
 };
 
 export const isWorldConfigured = () => Boolean(config.world.appId && config.world.rpId && config.world.signingKey);
+
+const originPatterns = [config.webOrigin.replace(/\/+$/, ''), ...config.corsOrigins].map(
+  (o) => new RegExp(`^${o.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[a-z0-9-]+')}$`, 'i'),
+);
+/** True when a browser origin may call the API cross-origin: the Console origin plus ZORO_CORS_ORIGINS, nothing broader. */
+export const originAllowed = (origin: string) => originPatterns.some((p) => p.test(origin));
 
 if (!existsSync(config.dataDir)) mkdirSync(config.dataDir, { recursive: true });

@@ -10,7 +10,7 @@ import { queueDepth } from './sentinel/runner';
 export type ProtectionState = 'protected' | 'attention' | 'degraded' | 'observe' | 'not_configured';
 
 export interface Dependency {
-  id: 'auditor' | 'registry' | 'ledger' | 'human_seal' | 'gateway';
+  id: 'auditor' | 'registry' | 'ledger' | 'human_seal' | 'gateway' | 'storage';
   label: string;
   state: 'ok' | 'degraded' | 'not_configured' | 'down';
   detail: string;
@@ -58,6 +58,13 @@ export function dependencies(): Dependency[] {
       : { id: 'human_seal', label: 'Human Seal (World ID)', state: 'not_configured', detail: 'Actions that need a Human Seal cannot proceed until World ID is configured' },
   );
   if (failedOutbox) deps.push({ id: 'ledger', label: 'Onchain writes', state: 'degraded', detail: `${failedOutbox} write(s) failed permanently; retry from Settings → Networks` });
+  if (config.ephemeralStorage)
+    deps.push({
+      id: 'storage',
+      label: 'Local records',
+      state: 'degraded',
+      detail: 'This instance runs on a disk that is wiped on every restart or redeploy: local seals, audits, incidents, approvals, queued onchain writes and the audit log start over. Verdicts already anchored on Hedera are re-read from the ledger.',
+    });
   return deps;
 }
 
@@ -100,6 +107,7 @@ export function environment() {
     auditor: auditorAccount.address,
     auditorKeySource,
     requireAi: config.sentinel.requireAi,
+    ephemeralStorage: config.ephemeralStorage,
   };
 }
 

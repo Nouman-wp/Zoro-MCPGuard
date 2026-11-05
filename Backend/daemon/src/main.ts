@@ -11,7 +11,7 @@ import { consoleApi } from './api/console';
 import { publicApi } from './api/public';
 import { startAnchoring } from './anchors';
 import { expireApprovals } from './approvals';
-import { VERSION, config, isEnsConfigured, isHederaConfigured, isWorldConfigured } from './config';
+import { VERSION, config, isEnsConfigured, isHederaConfigured, isWorldConfigured, originAllowed } from './config';
 import { measureDeterministic } from './corpus';
 import { all } from './db';
 import { gateway } from './gateway/gateway';
@@ -26,9 +26,18 @@ import { aiConfigured } from './sentinel/ai';
 import { expireSeals } from './sentinel/runner';
 
 const app = new Hono();
+const startedAt = Date.now();
 
-app.use('/api/public/*', cors({ origin: '*', allowMethods: ['GET', 'POST'] }));
-app.use('/api/console/*', cors({ origin: config.webOrigin, credentials: true, allowHeaders: ['content-type', 'x-zoro-console-token'] }));
+/**
+ * Liveness for the hosting health check and the keep-alive ping. Answers from memory only: it never touches the
+ * database, the chain or the auditor, so it stays fast and cannot fail because a dependency is slow.
+ */
+app.get('/healthz', (c) => c.json({ ok: true, version: VERSION, uptimeSec: Math.round((Date.now() - startedAt) / 1000) }, 200, { 'cache-control': 'no-store' }));
+
+// The web app reaches the API through same-origin rewrites; direct browser calls are allowed only from its own origins.
+const allowOrigin = (origin: string) => (originAllowed(origin) ? origin : null);
+app.use('/api/public/*', cors({ origin: allowOrigin, allowMethods: ['GET', 'POST'] }));
+app.use('/api/console/*', cors({ origin: allowOrigin, credentials: true, allowHeaders: ['content-type', 'x-zoro-console-token'] }));
 
 const safeEqual = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
