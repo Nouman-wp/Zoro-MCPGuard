@@ -1,0 +1,35 @@
+{
+  "name": "@zoro/daemon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Zoro daemon: MCP Gateway, Sentinel auditor, registry/ledger publishing (through @zoro/blockchain), Human Seal validation, Attack Lab and the Console API.",
+  "bin": {
+    "zoro-bridge": "./bin/zoro-bridge.mjs"
+  },
+  "scripts": {
+    "dev": "node --watch --import tsx src/main.ts",
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "corpus:capture": "tsx scripts/capture-corpus.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@worldcoin/idkit-core": "^4.6.0",
+    "@worldcoin/idkit-server": "^1.2.0",
+    "@zoro/blockchain": "workspace:*",
+    "@zoro/core": "workspace:*",
+    "dotenv": "^17.2.3",
+    "hono": "^4.13.14",
+    "tsx": "^4.23.15",
+    "viem": "^2.57.11",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "5.9.3",
+    "vitest": "^5.0.5"
+  }
+}
