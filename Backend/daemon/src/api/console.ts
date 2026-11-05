@@ -644,9 +644,11 @@ consoleApi.get('/settings', (c) =>
         isHederaConfigured() ? `Hedera (${config.hedera.network}): verdicts, revocations, disputes, and Merkle roots of your audit log — never the events themselves` : null,
         config.sentinel.apiKeyPresent ? `AI provider (${providerName()}): public tool definitions for audit; Ask Zoro questions and the records it reads, when you use it` : null,
         isWorldConfigured() ? 'World ID: the action digest as the proof signal — never the action itself' : null,
+        getSetting('remote_package_checks') !== 'off' ? 'npm registry, npm downloads API and OSV.dev: the name and version of packages being checked (installs, npx servers, known-vulnerability lookups) — switch off under Packages & skills' : null,
+        getSetting('org_membership') && getSetting('org_membership') !== 'null' ? 'Your organization’s Zoro: your inventory (MCP servers, packages, skills, clients and their verdicts), plus incident titles if the organization chose that level — never prompts, arguments, results or files' : null,
       ].filter(Boolean),
     },
-    team: { note: 'Single-user installation. Approver groups use distinct World ID nullifiers per approval.' },
+    team: { note: 'Each Zoro is one person’s gateway. Teams join an organization (Console → Organization) with World ID; approver groups use distinct World ID nullifiers per approval.' },
     scanPermitted: scanPermitted(),
   }),
 );

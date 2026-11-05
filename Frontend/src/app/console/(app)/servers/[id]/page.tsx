@@ -7,6 +7,7 @@ import { RefreshCw, RotateCw, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, CardHeader, CodeBlock, ErrorState, Hash, KV, LoadingBlock, Modal, Notice, PageHeader, StateBadge, Table, Tabs, Td, VerdictBadge } from '@/components/ui';
 import { CapabilityChips } from '@/components/security';
 import { ModeSelect, type ServerSummary } from '@/components/console/server-bits';
+import { SupplyChainCard } from '@/components/console/supply-chain';
 import { api, useApi } from '@/lib/api';
 import { fmtDate, shortHash, timeAgo } from '@/lib/format';
 
@@ -73,6 +74,7 @@ export default function ServerDetail({ params }: { params: Promise<{ id: string 
         <Card className="p-4"><p className="text-[12px] text-ash">Sealed</p><p className="mt-1 text-[20px]">{s.sealed}/{s.total}</p><p className="text-[12px] text-ash">{s.quarantined} held back</p></Card>
         <Card className="p-4"><p className="text-[12px] text-ash">Publisher</p><p className="mt-1 text-[14px]">{d.data.namespace ? `${d.data.namespace.status} (${d.data.namespace.method})` : 'not claimed'}</p></Card>
       </div>
+      <SupplyChainCard serverId={id} />
       <Card className="mt-4">
         <Tabs className="px-3" tabs={[{ id: 'tools', label: 'Definitions', count: d.data.entries.length }, { id: 'history', label: 'Change history', count: d.data.history.length }, { id: 'identity', label: 'Identity' }, { id: 'policy', label: 'Policy' }, { id: 'log', label: 'Connection log' }]} value={tab} onChange={setTab} />
         {tab === 'tools' && (
