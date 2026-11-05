@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,9 @@ import { raiseIncident } from './incidents';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const BRIDGE_PATH = path.resolve(here, '../bin/zoro-bridge.mjs');
+export const HOOK_PATH = path.resolve(here, '../bin/zoro-hook.mjs');
+const CLAUDE_SETTINGS = path.join(os.homedir(), '.claude', 'settings.json');
+const CLAUDE_JSON = path.join(os.homedir(), '.claude.json');
 const BACKUP_DIR = path.join(config.dataDir, 'backups');
 
 interface ClientDef {
@@ -36,6 +39,44 @@ function candidates(): ClientDef[] {
     { client: 'gemini-cli', label: 'Gemini CLI', key: 'mcpServers', paths: [path.join(home, '.gemini', 'settings.json')] },
     { client: 'cline', label: 'Cline', key: 'mcpServers', paths: [path.join(userConfig, 'Code', 'User', 'globalStorage', 'saoudrizwan.claude-dev', 'settings', 'cline_mcp_settings.json')] },
   ];
+}
+
+/** Projects Claude Code has opened (keys of "projects" in ~/.claude.json), for project and local MCP scopes. */
+function claudeProjects(): { dir: string; local: Record<string, Record<string, unknown>> }[] {
+  try {
+    if (!existsSync(CLAUDE_JSON) || statSync(CLAUDE_JSON).size > 50_000_000) return [];
+    const doc = JSON.parse(readFileSync(CLAUDE_JSON, 'utf8')) as { projects?: Record<string, { mcpServers?: Record<string, Record<string, unknown>> }> };
+    return Object.entries(doc.projects ?? {}).map(([dir, v]) => ({ dir, local: v?.mcpServers ?? {} }));
+  } catch {
+    return [];
+  }
+}
+
+function projectDefs(): ClientDef[] {
+  return claudeProjects()
+    .filter((p) => existsSync(path.join(p.dir, '.mcp.json')))
+    .map((p) => ({ client: 'claude-code-project', label: `Claude Code project (${path.basename(p.dir)})`, key: 'mcpServers' as const, paths: [path.join(p.dir, '.mcp.json')] }));
+}
+
+/** Every AI client configuration file Zoro knows about (for the settings watchdog). */
+export function clientConfigPaths(): { path: string; client: string }[] {
+  const out = [...candidates(), ...projectDefs()].flatMap((d) => d.paths.map((p) => ({ path: p, client: d.client })));
+  out.push({ path: CLAUDE_SETTINGS, client: 'claude-code-settings' });
+  if (process.platform === 'win32') out.push({ path: 'C:\\Program Files\\ClaudeCode\\managed-settings.json', client: 'claude-code-managed' }, { path: 'C:\\Program Files\\ClaudeCode\\managed-mcp.json', client: 'claude-code-managed' });
+  else if (process.platform === 'darwin') out.push({ path: '/Library/Application Support/ClaudeCode/managed-settings.json', client: 'claude-code-managed' }, { path: '/Library/Application Support/ClaudeCode/managed-mcp.json', client: 'claude-code-managed' });
+  else out.push({ path: '/etc/claude-code/managed-settings.json', client: 'claude-code-managed' }, { path: '/etc/claude-code/managed-mcp.json', client: 'claude-code-managed' });
+  return out;
+}
+
+/** After Zoro writes a client config itself, record the new content as trusted so the watchdog does not flag it. */
+export function trustConfigWrite(file: string, client: string) {
+  try {
+    const content = readFileSync(file, 'utf8');
+    const hash = createHash('sha256').update(content).digest('hex');
+    run('INSERT INTO config_snapshots(path, client, hash, content, good_content, updated_at, expected_until) VALUES(?,?,?,?,?,?,?) ON CONFLICT(path) DO UPDATE SET hash = excluded.hash, content = excluded.content, good_content = excluded.good_content, updated_at = excluded.updated_at, expected_until = excluded.expected_until', file, client, `0x${hash}`, content, content, Date.now(), Date.now() + 5_000);
+  } catch {
+    /* file vanished: nothing to trust */
+  }
 }
 
 /** Minimal JSONC support (VS Code config files allow comments and trailing commas). */
@@ -81,6 +122,8 @@ export interface DetectedClient {
   routed: boolean;
   backup: string | null;
   error: string | null;
+  /** false for Claude Code local-scope servers kept inside ~/.claude.json: detected and flagged, not rewritten */
+  routable?: boolean;
 }
 
 const idFor = (p: string) => createHash('sha256').update(p).digest('hex').slice(0, 16);
@@ -95,7 +138,7 @@ export function scanClients(grant = false): DetectedClient[] {
   }
   if (!scanPermitted()) throw new Error('Permission to read client configurations has not been granted');
   const out: DetectedClient[] = [];
-  for (const def of candidates()) {
+  for (const def of [...candidates(), ...projectDefs()]) {
     for (const p of def.paths) {
       if (!existsSync(p)) continue;
       const id = idFor(p);
@@ -122,6 +165,23 @@ export function scanClients(grant = false): DetectedClient[] {
       }
     }
   }
+  // Claude Code local scope: servers stored per project inside ~/.claude.json. Detected and flagged; route them by
+  // moving them to user scope or by adding them through Zoro.
+  for (const p of claudeProjects()) {
+    const names = Object.keys(p.local);
+    if (!names.length) continue;
+    const servers: DetectedServer[] = Object.entries(p.local).map(([name, e]) => ({
+      name,
+      transport: typeof e.url === 'string' ? 'http' : 'stdio',
+      command: typeof e.command === 'string' ? e.command : null,
+      args: Array.isArray(e.args) ? (e.args as string[]).map(String) : [],
+      url: typeof e.url === 'string' ? e.url : null,
+      hasEnv: Boolean(e.env && Object.keys(e.env as object).length),
+      hasHeaders: Boolean(e.headers && Object.keys(e.headers as object).length),
+      status: isZoroEntry(e) ? 'zoro' : 'unprotected',
+    }));
+    out.push({ id: idFor(`${CLAUDE_JSON}#${p.dir}`), client: 'claude-code-local', label: `Claude Code local scope (${path.basename(p.dir)})`, path: `${CLAUDE_JSON} → projects → ${p.dir}`, servers, routed: false, backup: null, error: null, routable: false });
+  }
   return out;
 }
 
@@ -130,7 +190,7 @@ export function scanClients(grant = false): DetectedClient[] {
  * secrets in env/headers move into Zoro's local store and are never displayed in full.
  */
 export function routeClient(clientId: string, serverNames: string[], mode: 'enforce' | 'observe') {
-  const def = candidates().find((d) => d.paths.some((p) => idFor(p) === clientId));
+  const def = [...candidates(), ...projectDefs()].find((d) => d.paths.some((p) => idFor(p) === clientId));
   const p = def?.paths.find((x) => idFor(x) === clientId);
   if (!def || !p || !existsSync(p)) throw new Error('client configuration not found');
   if (!existsSync(BACKUP_DIR)) mkdirSync(BACKUP_DIR, { recursive: true });
@@ -164,6 +224,7 @@ export function routeClient(clientId: string, serverNames: string[], mode: 'enfo
   entries.zoro = def.key === 'servers' ? { type: 'stdio', command: process.execPath, args: bridgeArgs } : { command: process.execPath, args: bridgeArgs };
   doc[def.key] = entries;
   writeFileSync(p, JSON.stringify(doc, null, 2));
+  trustConfigWrite(p, def.client);
   const routedNames = [...new Set([...json<string[]>(prior?.routed_servers, []), ...imported])];
   run('UPDATE client_configs SET backup_path = ?, routed = 1, routed_at = ?, routed_servers = ? WHERE id = ?', backup, Date.now(), JSON.stringify(routedNames), clientId);
   appendLog('onboarding', `${def.label}: routed ${imported.length} server(s) through Zoro (${mode})`, { servers: imported, backup }, clientId);
@@ -177,6 +238,7 @@ export function restoreClients(clientId?: string) {
   for (const r of rows) {
     if (!r.backup_path || !existsSync(r.backup_path)) continue;
     writeFileSync(r.path, readFileSync(r.backup_path));
+    trustConfigWrite(r.path, r.client);
     run('UPDATE client_configs SET routed = 0, routed_servers = NULL, backup_path = NULL WHERE id = ?', r.id);
     restored.push(r.path);
   }
@@ -202,4 +264,66 @@ export function watchForBypass() {
 
 export function clientSnippet(client: string) {
   return { command: process.execPath, args: [BRIDGE_PATH, '--url', `http://127.0.0.1:${config.port}/mcp`, '--token', gatewayToken, '--client', client] };
+}
+
+// ---------- Claude Code hook: built-in tools (Bash, Write/Edit) and npm/npx/skill protection ----------
+
+const HOOK_MATCHER = 'Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|mcp__.*';
+const isZoroHook = (h: { command?: string }) => typeof h?.command === 'string' && h.command.includes('zoro-hook');
+type HookGroup = { matcher?: string; hooks?: { type?: string; command?: string; timeout?: number }[] };
+
+function readClaudeSettings(): Record<string, unknown> {
+  if (!existsSync(CLAUDE_SETTINGS)) return {};
+  return parseJsonc(readFileSync(CLAUDE_SETTINGS, 'utf8'));
+}
+
+export function claudeHookStatus() {
+  let installed = false;
+  let error: string | null = null;
+  try {
+    const doc = readClaudeSettings();
+    const groups = ((doc.hooks as Record<string, HookGroup[]> | undefined)?.PreToolUse ?? []) as HookGroup[];
+    installed = groups.some((g) => (g.hooks ?? []).some(isZoroHook));
+  } catch (e) {
+    error = `Could not read ${CLAUDE_SETTINGS}: ${(e as Error).message}`;
+  }
+  return { installed, path: CLAUDE_SETTINGS, matcher: HOOK_MATCHER, error, backup: getSetting('claude_hook_backup') };
+}
+
+/** Add Zoro's PreToolUse hook to Claude Code's user settings, after backing the file up. Idempotent. */
+export function installClaudeCodeHook() {
+  if (!existsSync(BACKUP_DIR)) mkdirSync(BACKUP_DIR, { recursive: true });
+  mkdirSync(path.dirname(CLAUDE_SETTINGS), { recursive: true });
+  if (existsSync(CLAUDE_SETTINGS) && !getSetting('claude_hook_backup')) {
+    const backup = path.join(BACKUP_DIR, `claude-settings-${Date.now()}.json`);
+    copyFileSync(CLAUDE_SETTINGS, backup);
+    setSetting('claude_hook_backup', backup);
+  }
+  const tokenFile = path.join(config.dataDir, 'hook.token');
+  writeFileSync(tokenFile, gatewayToken, { mode: 0o600 });
+  const doc = readClaudeSettings();
+  const hooks = { ...((doc.hooks as Record<string, HookGroup[]>) ?? {}) };
+  const pre = (hooks.PreToolUse ?? []).map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !isZoroHook(h)) })).filter((g) => g.hooks.length);
+  const q = (x: string) => `"${x}"`;
+  pre.push({ matcher: HOOK_MATCHER, hooks: [{ type: 'command', command: `${q(process.execPath)} ${q(HOOK_PATH)} --url http://127.0.0.1:${config.port}/hooks/claude-code --token-file ${q(tokenFile)}`, timeout: 30 }] });
+  hooks.PreToolUse = pre;
+  doc.hooks = hooks;
+  writeFileSync(CLAUDE_SETTINGS, JSON.stringify(doc, null, 2));
+  trustConfigWrite(CLAUDE_SETTINGS, 'claude-code-settings');
+  appendLog('onboarding', 'Installed the Zoro hook for Claude Code built-in tools (Bash, Write/Edit) and package/skill installs', { path: CLAUDE_SETTINGS });
+  return claudeHookStatus();
+}
+
+export function uninstallClaudeCodeHook() {
+  if (!existsSync(CLAUDE_SETTINGS)) return claudeHookStatus();
+  const doc = readClaudeSettings();
+  const hooks = { ...((doc.hooks as Record<string, HookGroup[]>) ?? {}) };
+  hooks.PreToolUse = (hooks.PreToolUse ?? []).map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !isZoroHook(h)) })).filter((g) => g.hooks.length);
+  if (!hooks.PreToolUse.length) delete hooks.PreToolUse;
+  if (Object.keys(hooks).length) doc.hooks = hooks;
+  else delete doc.hooks;
+  writeFileSync(CLAUDE_SETTINGS, JSON.stringify(doc, null, 2));
+  trustConfigWrite(CLAUDE_SETTINGS, 'claude-code-settings');
+  appendLog('onboarding', 'Removed the Zoro hook from Claude Code; built-in tools are no longer checked', { path: CLAUDE_SETTINGS });
+  return claudeHookStatus();
 }
