@@ -1,0 +1,389 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens, measured from agentql.com (October 2026): a near-black ground, surfaces lifted by tone rather
+ * than lines, navy reserved for code panels, and colour only in the glows behind product fragments.
+ * Token names are kept from the first version so every page re-skins from here.
+ */
+@theme {
+  --color-void: #08090a; /* nav, footer, deepest band */
+  --color-abyss: #0a0b0c; /* page ground */
+  --color-deep-sea: #111216; /* card surface */
+  --color-raised: #16171c; /* nested surface, hover */
+  --color-cobalt: #121a2e; /* highlighted surface (selected, spotlight) */
+  --color-cobalt-edge: #22304f;
+  --color-code: #0c162b; /* code panels: the one navy surface, as on agentql */
+  --color-code-edge: #1a2747;
+  --color-frosted: #8fb0f5; /* links and the accent on data */
+  --color-signal: #4f7fe8;
+  --color-pulse: #305fbd;
+  --color-aurora: #625fff;
+  --color-plasma: #ff7dda;
+  --color-ember: #ff8a4c;
+  --color-teal: #2fd4c4;
+  --color-quartz: #ffffff;
+  --color-ash: #a3a6b4; /* secondary text, 7.6:1 on the ground */
+  --color-mist: #c9cbd3; /* body text on cards */
+  --color-slate: #4a4d57;
+  --color-obsidian: #1e2027; /* control and card outlines */
+  --color-inkline: #17181d; /* row rules, nested outlines */
+  --color-sapphire: #2e3140; /* hover outline */
+  --color-steel: #8b92a8;
+  --color-ghost-edge: #3a3d47;
+  --color-code-key: #ff7dda;
+  --color-code-str: #28b6ff;
+  --color-code-num: #9db6ff;
+
+  /* State colours: a hue on a dark tint of itself, never without a text label. */
+  --color-ok: #3fc07a;
+  --color-ok-bg: #12241a;
+  --color-warn: #e3b14f;
+  --color-warn-bg: #2a2212;
+  --color-danger: #f0646a;
+  --color-danger-bg: #2c1618;
+  --color-info: #8fb0f5;
+  --color-info-bg: #131d33;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-figtree), 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  --radius-card: 14px;
+  --radius-input: 8px;
+
+  --shadow-md: rgba(0, 0, 0, 0.25) 0px 3px 16px 0px;
+  --shadow-xl: rgba(0, 0, 0, 0.55) 0px 8px 40px 0px;
+  --shadow-float: rgba(0, 0, 0, 0.45) 0px 24px 48px -8px, rgba(0, 0, 0, 0.3) 0px 6px 16px 0px;
+  --shadow-glow: rgba(255, 255, 255, 0.35) 0px 2px 14px 0px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* Tokens that only exist so the light theme can redefine them. */
+@theme {
+  --color-ink: #ffffff; /* overlays: hairlines, hover fills, tints (white on dark, black on light) */
+  --color-panel: #121318;
+  --color-sunken: #0f1013;
+  --color-field: #0d0e11;
+  --color-control: #111215;
+  --color-control-edge: #2a2c33;
+  --color-control-hover: #454856;
+  --color-faint: #6f7380;
+  --color-violet-bg: #1d1a4a;
+  --color-violet-ink: #b3b1ff;
+  --color-ember-ink: #e9b39a;
+  --color-teal-ink: #7fe9de;
+  --color-add-bg: #12305e;
+  --color-add-ink: #cfe0ff;
+}
+
+:root {
+  color-scheme: dark;
+  --t-press: 140ms;
+  --t-hover: 180ms;
+  --t-ui: 240ms;
+  --ink-dim-from: #ffffff;
+  --ink-dim-to: #8a8d99;
+  --halftone-dot: rgba(255, 255, 255, 0.16);
+  --card-a: #121319;
+  --card-b: #0e0f13;
+}
+
+/*
+ * Light theme: the same roles on a cool off-white ground. Product fragments (code panels, the agent window) keep
+ * their dark navy, the way developer sites show code on light pages.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-void: #eef0f4;
+  --color-abyss: #f6f7f9;
+  --color-deep-sea: #ffffff;
+  --color-raised: #f1f2f5;
+  --color-cobalt: #e9efff;
+  --color-cobalt-edge: #c4d3f7;
+  --color-frosted: #2f5fd0;
+  --color-signal: #2f5fd0;
+  --color-quartz: #0b0c10;
+  --color-ash: #5a5e6b;
+  --color-mist: #343741;
+  --color-slate: #9a9daa;
+  --color-obsidian: #dcdfe6;
+  --color-inkline: #eaecf0;
+  --color-sapphire: #c3c7d1;
+  --color-steel: #687089;
+  --color-ghost-edge: #c6c9d2;
+  --color-ink: #0b0c10;
+  --color-panel: #ffffff;
+  --color-sunken: #ffffff;
+  --color-field: #ffffff;
+  --color-control: #ffffff;
+  --color-control-edge: #d3d6de;
+  --color-control-hover: #a9adba;
+  --color-faint: #8a8d99;
+  --color-violet-bg: #eeedff;
+  --color-violet-ink: #4a44c4;
+  --color-ember-ink: #b4532a;
+  --color-teal-ink: #0d7f74;
+  --color-add-bg: #dce7ff;
+  --color-add-ink: #173a8c;
+  --color-ok: #12814f;
+  --color-ok-bg: #e2f5eb;
+  --color-warn: #946400;
+  --color-warn-bg: #fdf2d8;
+  --color-danger: #c42f38;
+  --color-danger-bg: #fde7e8;
+  --color-info: #2f5fd0;
+  --color-info-bg: #e8eefc;
+  --shadow-md: rgba(16, 24, 40, 0.06) 0px 3px 12px 0px;
+  --shadow-xl: rgba(16, 24, 40, 0.12) 0px 12px 40px -8px;
+  --shadow-float: rgba(16, 24, 40, 0.16) 0px 24px 48px -12px, rgba(16, 24, 40, 0.06) 0px 4px 12px 0px;
+  --ink-dim-from: #0b0c10;
+  --ink-dim-to: #9a9daa;
+  --halftone-dot: rgba(20, 24, 40, 0.14);
+  --card-a: #ffffff;
+  --card-b: #fafbfc;
+}
+
+html {
+  background: var(--color-abyss);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-abyss);
+  color: var(--color-quartz);
+  font-family: var(--font-sans);
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (pointer: fine) {
+  html { overscroll-behavior: none; }
+}
+
+::selection {
+  background: rgba(79, 127, 232, 0.4);
+}
+
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.025em;
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Two-tone headline, as on agentql: the second line steps back to grey. */
+.ink-dim {
+  background: linear-gradient(180deg, var(--ink-dim-from) 0%, var(--ink-dim-to) 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ink-fade {
+  background: linear-gradient(180deg, var(--ink-dim-from) 30%, color-mix(in oklab, var(--ink-dim-from) 55%, transparent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Buttons whose fill inverts with the theme ---------- */
+
+.btn-primary {
+  background: linear-gradient(180deg, #ffffff, #dcdde2);
+  color: #07080a;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.btn-primary:hover { background: linear-gradient(180deg, #ffffff, #eceef2); }
+.btn-ghost {
+  background: var(--color-control);
+  color: var(--color-quartz);
+  border: 1px solid var(--color-control-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.btn-ghost:hover { border-color: var(--color-control-hover); background: var(--color-raised); }
+:root[data-theme='light'] .btn-primary {
+  background: linear-gradient(180deg, #23252c, #0b0c10);
+  color: #ffffff;
+  border-color: #0b0c10;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(16, 24, 40, 0.25);
+}
+:root[data-theme='light'] .btn-primary:hover { background: linear-gradient(180deg, #34363f, #15161b); }
+:root[data-theme='light'] .btn-ghost { box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); }
+
+/* ---------- Card fills, tinted per section, defined for both themes ---------- */
+
+.card-grad { background: linear-gradient(180deg, var(--card-a), var(--card-b)); }
+.card-ember { background: linear-gradient(135deg, #17141a 0%, #0f1015 45%, #0c0d12 100%); }
+.card-teal { background: linear-gradient(180deg, #0f1418, #0c0e12); }
+.card-teal-strong { background: linear-gradient(180deg, #0f1a1c, #0d0f12); }
+.card-blue { background: linear-gradient(120deg, #151a24, #0f1116 55%); }
+.card-violet { background: linear-gradient(180deg, #14131c, #0e0f13); }
+.card-warm { background: linear-gradient(180deg, #17131a, #0e0f13); }
+.wash-1 { background: linear-gradient(135deg, rgba(59, 42, 107, 0.8), #1a1530 55%, #0f1015); }
+.wash-2 { background: linear-gradient(135deg, rgba(20, 82, 79, 0.7), #10222a 55%, #0f1015); }
+.wash-3 { background: linear-gradient(135deg, rgba(29, 58, 138, 0.7), #121a33 55%, #0f1015); }
+.wash-4 { background: linear-gradient(135deg, rgba(90, 42, 90, 0.7), #22152a 55%, #0f1015); }
+:root[data-theme='light'] .card-ember { background: linear-gradient(135deg, #fff1e8 0%, #ffffff 50%, #fbfbfc 100%); }
+:root[data-theme='light'] .card-teal { background: linear-gradient(180deg, #eefaf7, #ffffff); }
+:root[data-theme='light'] .card-teal-strong { background: linear-gradient(180deg, #e6f8f4, #ffffff); }
+:root[data-theme='light'] .card-blue { background: linear-gradient(120deg, #edf2ff, #ffffff 55%); }
+:root[data-theme='light'] .card-violet { background: linear-gradient(180deg, #f3f1ff, #ffffff); }
+:root[data-theme='light'] .card-warm { background: linear-gradient(180deg, #fff3ec, #ffffff); }
+:root[data-theme='light'] .wash-1 { background: linear-gradient(135deg, #ebe6ff, #ffffff 70%); }
+:root[data-theme='light'] .wash-2 { background: linear-gradient(135deg, #dff6f2, #ffffff 70%); }
+:root[data-theme='light'] .wash-3 { background: linear-gradient(135deg, #e3ebff, #ffffff 70%); }
+:root[data-theme='light'] .wash-4 { background: linear-gradient(135deg, #f8e6f6, #ffffff 70%); }
+
+/* ---------- Atmosphere: glows and halftone, behind product fragments only ---------- */
+
+.glow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+}
+.glow-blue { background: radial-gradient(closest-side, rgba(56, 110, 255, 0.85), rgba(56, 110, 255, 0) 70%); }
+.glow-teal { background: radial-gradient(closest-side, rgba(47, 212, 196, 0.7), rgba(47, 212, 196, 0) 70%); }
+.glow-violet { background: radial-gradient(closest-side, rgba(110, 95, 255, 0.8), rgba(110, 95, 255, 0) 70%); }
+.glow-ember { background: radial-gradient(closest-side, rgba(255, 128, 72, 0.75), rgba(255, 128, 72, 0) 70%); }
+.glow-pink { background: radial-gradient(closest-side, rgba(255, 125, 218, 0.7), rgba(255, 125, 218, 0) 70%); }
+
+.aurora {
+  background-image:
+    radial-gradient(60% 70% at 72% 18%, rgba(56, 100, 255, 0.22), transparent 70%),
+    radial-gradient(30% 40% at 88% 70%, rgba(47, 212, 196, 0.1), transparent 70%),
+    radial-gradient(35% 45% at 12% 95%, rgba(255, 128, 72, 0.08), transparent 70%);
+}
+.aurora-top {
+  background-image: radial-gradient(50% 80% at 50% 115%, rgba(56, 90, 230, 0.35), transparent 70%);
+}
+
+/* A field of fine dots that fades in from one edge: agentql's halftone texture. */
+.halftone {
+  background-image: radial-gradient(var(--halftone-dot) 0.9px, transparent 1.1px);
+  background-size: 6px 6px;
+}
+:root[data-theme='light'] .glow { opacity: 0.32; }
+:root[data-theme='light'] .aurora {
+  background-image:
+    radial-gradient(60% 70% at 72% 18%, rgba(70, 110, 255, 0.14), transparent 70%),
+    radial-gradient(30% 40% at 88% 70%, rgba(47, 212, 196, 0.1), transparent 70%),
+    radial-gradient(35% 45% at 12% 95%, rgba(255, 128, 72, 0.08), transparent 70%);
+}
+:root[data-theme='light'] .aurora-top { background-image: radial-gradient(50% 80% at 50% 115%, rgba(70, 100, 240, 0.18), transparent 70%); }
+:root[data-theme='light'] .surface { background: #ffffff; border-color: var(--color-obsidian); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
+:root[data-theme='light'] .spotlight::before { background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(47, 95, 208, 0.06), transparent 45%); }
+:root[data-theme='light'] * { scrollbar-color: #c6c9d2 transparent; }
+:root[data-theme='light'] ::selection { background: rgba(47, 95, 208, 0.2); }
+
+/* The theme switch crossfades the whole page (View Transitions), never under reduced motion. */
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 0.35s; animation-timing-function: var(--ease-out); }
+.halftone-blue { background-image: radial-gradient(rgba(110, 150, 255, 0.35) 0.9px, transparent 1.1px); background-size: 6px 6px; }
+.fade-r { mask-image: linear-gradient(90deg, transparent 10%, black 85%); }
+.fade-l { mask-image: linear-gradient(270deg, transparent 10%, black 85%); }
+.fade-t { mask-image: linear-gradient(0deg, transparent 0%, black 90%); }
+.fade-b { mask-image: linear-gradient(180deg, transparent 0%, black 90%); }
+.fade-radial { mask-image: radial-gradient(closest-side, black 30%, transparent 100%); }
+
+/* Cards with a lit top edge: a tone step plus a 1px highlight, never a glow at rest. */
+.surface {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.code-surface {
+  background: linear-gradient(180deg, #0f1a33, #0b1428);
+  border: 1px solid var(--color-code-edge);
+  box-shadow: inset 0 1px 0 rgba(140, 170, 255, 0.08), var(--shadow-float);
+}
+
+/* Pointer spotlight on interactive cards: --mx/--my are set by the Spotlight component. */
+.spotlight {
+  position: relative;
+  isolation: isolate;
+}
+.spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-ui) ease;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(120, 150, 255, 0.08), transparent 45%);
+  z-index: -1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .spotlight:hover::before { opacity: 1; }
+}
+
+/* Dotted connector between product fragments, with a travelling dot (stops under reduced motion). */
+.connector {
+  background-image: linear-gradient(90deg, rgba(160, 185, 255, 0.45) 50%, transparent 50%);
+  background-size: 6px 1px;
+  background-repeat: repeat-x;
+  height: 1px;
+}
+.connector-v {
+  background-image: linear-gradient(180deg, rgba(160, 185, 255, 0.45) 50%, transparent 50%);
+  background-size: 1px 6px;
+  background-repeat: repeat-y;
+  width: 1px;
+}
+
+/* Scrollbars that fit the dark canvas */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2d36 transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-frosted);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Native selects stay readable in Windows dark mode. */
+select, option { background-color: var(--color-abyss); color: var(--color-quartz); }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.slide-in { animation: slide-in 0.24s var(--ease-out) both; }
+
+@keyframes travel-x {
+  from { transform: translateX(0); }
+  to { transform: translateX(var(--travel, 120px)); }
+}
+.travel-dot { animation: travel-x 2.6s var(--ease-in-out) infinite; }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee { animation: marquee 48s linear infinite; }
+.marquee-host:hover .marquee { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot, .slide-in, .travel-dot, .marquee { animation: none; }
+  .spotlight::before { transition: none; }
+}
