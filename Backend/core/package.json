@@ -1,0 +1,23 @@
+{
+  "name": "@zoro/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Isomorphic Zoro core: canonicalization, fingerprinting, Sentinel deterministic rules, diffing, policy engine, data-flow guard and Output Shield. Runs in Node and in the browser.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./corpus": "./corpus/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "5.9.3",
+    "vitest": "^5.0.5"
+  }
+}
