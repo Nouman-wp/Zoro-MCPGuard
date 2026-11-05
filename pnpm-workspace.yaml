@@ -1,0 +1,9 @@
+packages:
+  - "Frontend"
+  - "Backend/*"
+  - "Blockchain"
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - "@tailwindcss/oxide"

@@ -1,0 +1,25 @@
+{
+  "name": "zoro",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Zoro — runtime integrity for MCP tools. A gateway that verifies every tool call against a public, tamper-evident seal.",
+  "type": "module",
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n daemon,web -c magenta,cyan \"pnpm --filter @zoro/daemon dev\" \"pnpm --filter @zoro/web dev\"",
+    "start": "concurrently -k -n daemon,web -c magenta,cyan \"pnpm --filter @zoro/daemon start\" \"pnpm --filter @zoro/web start\"",
+    "build": "pnpm --filter @zoro/web build",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "setup:hedera": "pnpm --filter @zoro/blockchain setup:hedera",
+    "setup:ens": "pnpm --filter @zoro/blockchain setup:ens",
+    "corpus:capture": "pnpm --filter @zoro/daemon corpus:capture"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "typescript": "5.9.3"
+  }
+}
