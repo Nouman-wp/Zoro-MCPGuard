@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { BACKEND_UP_EVENT, daemonDownHint } from './backend';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public body: unknown = null) {
@@ -21,7 +22,7 @@ export async function api<T = unknown>(path: string, init?: RequestInit & { json
       cache: 'no-store',
     });
   } catch {
-    throw new ApiError(0, 'The Zoro daemon is not reachable. Start it with `pnpm dev` — while it is down, Zoro is not protecting anything.');
+    throw new ApiError(0, `The Zoro daemon is not reachable. ${daemonDownHint()} While it is down, Zoro is not protecting anything.`);
   }
   const text = await res.text();
   let body: unknown = null;
@@ -34,7 +35,7 @@ export async function api<T = unknown>(path: string, init?: RequestInit & { json
     window.location.href = `/console/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   }
   if (!res.ok) {
-    const msg = body && typeof body === 'object' && 'error' in body ? String((body as { error: unknown }).error) : res.status >= 500 ? 'The Zoro daemon is not reachable or returned an error.' : `Request failed (${res.status})`;
+    const msg = body && typeof body === 'object' && 'error' in body ? String((body as { error: unknown }).error) : res.status >= 500 ? `The Zoro daemon is not reachable or returned an error. ${daemonDownHint()}` : `Request failed (${res.status})`;
     throw new ApiError(res.status, msg, body);
   }
   return body as T;
@@ -89,12 +90,14 @@ export function useApi<T>(path: string | null, opts: { on?: string[]; scope?: Sc
   const [error, setError] = useState<ApiError | null>(null);
   const [loading, setLoading] = useState(Boolean(path));
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const failures = useRef(0);
   const reload = useCallback(async () => {
     if (!path) return;
     try {
       const d = await api<T>(path);
       setData(d);
       setError(null);
+      failures.current = 0;
     } catch (e) {
       setError(e as ApiError);
     } finally {
@@ -104,6 +107,21 @@ export function useApi<T>(path: string | null, opts: { on?: string[]; scope?: Sc
   useEffect(() => {
     setLoading(Boolean(path));
     void reload();
+  }, [reload, path]);
+  // While the daemon is unreachable or still waking, keep retrying (5 s, backing off to 30 s), and reload at once
+  // when the backend-wake check sees it answer, so a page never stays stuck on an error the backend has recovered from.
+  useEffect(() => {
+    if (!error || !(error.status === 0 || error.status >= 500)) return;
+    const delay = Math.min(30_000, 5_000 * 2 ** Math.min(failures.current, 3));
+    failures.current++;
+    const t = setTimeout(() => void reload(), delay);
+    return () => clearTimeout(t);
+  }, [error, reload]);
+  useEffect(() => {
+    if (!path) return;
+    const onUp = () => void reload();
+    window.addEventListener(BACKEND_UP_EVENT, onUp);
+    return () => window.removeEventListener(BACKEND_UP_EVENT, onUp);
   }, [reload, path]);
   useEffect(() => {
     if (!opts.interval) return;

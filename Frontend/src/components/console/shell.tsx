@@ -12,6 +12,7 @@ import { Badge, Button, Notice, SeverityBadge, cx, inputCls } from '../ui';
 import { AskZoroPanel } from './ask';
 import { ThemeToggle } from '../theme';
 import { api, useApi, useEvents } from '@/lib/api';
+import { daemonDownHint } from '@/lib/backend';
 import { timeAgo } from '@/lib/format';
 
 export interface ConsoleStatus {
@@ -59,7 +60,7 @@ function StatusIndicator({ status, down }: { status: ConsoleStatus | null; down:
         <div className="slide-in absolute left-0 top-10 z-50 w-[360px] rounded-[14px] border border-ink/[0.08] bg-sunken p-4 shadow-[var(--shadow-xl)]" role="dialog" aria-label="Protection status">
           <p className="text-[14px] font-medium text-quartz">{down ? 'The Zoro daemon is not reachable' : status?.headline}</p>
           {down ? (
-            <p className="mt-2 text-[13px] text-ash">While the daemon is stopped, clients routed through Zoro get errors instead of falling back to unprotected connections. Start it with pnpm dev.</p>
+            <p className="mt-2 text-[13px] text-ash">While the daemon is stopped, clients routed through Zoro get errors instead of falling back to unprotected connections. {daemonDownHint()}</p>
           ) : (
             <ul className="mt-3 space-y-2.5">
               {status?.dependencies.map((d, i) => (
@@ -373,7 +374,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
         {down && (
           <div className="px-4 pt-4 md:px-8">
             <Notice tone="danger" title="Not protecting: the Zoro daemon is not reachable">
-              Clients routed through Zoro will get errors instead of silently connecting to tools directly. Start the daemon with <span className="font-mono">pnpm dev</span>.
+              Clients routed through Zoro will get errors instead of silently connecting to tools directly. {daemonDownHint()}
             </Notice>
           </div>
         )}

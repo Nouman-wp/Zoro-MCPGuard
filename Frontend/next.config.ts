@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   // The browser talks to the local daemon through these same-origin rewrites, so the console cookie travels with it.
   async rewrites() {
     return [
+      { source: '/api/healthz', destination: `${daemon}/healthz` },
       { source: '/api/public/:path*', destination: `${daemon}/api/public/:path*` },
       { source: '/api/console/:path*', destination: `${daemon}/api/console/:path*` },
     ];

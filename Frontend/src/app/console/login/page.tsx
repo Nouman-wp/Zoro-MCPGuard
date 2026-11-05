@@ -42,7 +42,7 @@ function LoginInner() {
       <Card elevated className="w-full card-grad p-8">
         <Logo />
         <h1 className="font-display mt-6 text-[28px] font-medium">Sign in to the Console</h1>
-        <p className="mt-2 text-[14px] font-light text-ash">The Console shows your own activity, so it is protected by a local token. The daemon prints a sign-in link when it starts; the token is also in <span className="font-mono text-mist">console.token</span> in Zoro’s data directory (on Windows, <span className="font-mono text-mist">%LOCALAPPDATA%\Zoro</span>).</p>
+        <p className="mt-2 text-[14px] font-light text-ash">The Console shows your own activity, so it is protected by a local token. The daemon prints a sign-in link when it starts; the token is also in <span className="font-mono text-mist">console.token</span> in Zoro’s data directory (on Windows, <span className="font-mono text-mist">%LOCALAPPDATA%\Zoro</span>). On a hosted deployment, it is the <span className="font-mono text-mist">ZORO_CONSOLE_TOKEN</span> value set on the backend.</p>
         <form
           className="mt-6 space-y-4"
           onSubmit={(e) => {

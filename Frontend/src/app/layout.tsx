@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Figtree, IBM_Plex_Mono, Inter } from 'next/font/google';
 import './globals.css';
+import { BackendWake } from '@/components/backend-wake';
 import { MotionProvider } from '@/components/motion';
 import { THEME_SCRIPT } from '@/lib/theme-script';
 
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-abyss font-sans text-quartz antialiased">
         <MotionProvider>{children}</MotionProvider>
+        <BackendWake />
       </body>
     </html>
   );
