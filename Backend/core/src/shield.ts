@@ -1,15 +1,19 @@
 import type { ShieldAction } from './policy/types';
-import { AUDITOR_PATTERNS, BASE64_RE, CROSS_TOOL_PATTERNS, INSTRUCTION_PATTERNS, decodeBase64Printable } from './sentinel/patterns';
+import { AUDITOR_PATTERNS, CROSS_TOOL_PATTERNS, INSTRUCTION_PATTERNS } from './sentinel/patterns';
+import { ENCODING_LABELS, findEncodedInstructions } from './decode';
 import { decodeTagRuns, findHiddenChars } from './unicode';
 import type { Severity } from './types';
 
 export interface ShieldFinding {
-  kind: 'instruction' | 'hidden_characters' | 'encoded_payload' | 'tool_reference' | 'addresses_agent';
+  kind: 'instruction' | 'hidden_characters' | 'encoded_payload' | 'encoded_instruction' | 'tool_reference' | 'addresses_agent';
   severity: Severity;
   label: string;
   start: number;
   end: number;
   text: string;
+  /** for encoded instructions: the decoded text and the encodings peeled off, outermost first */
+  decoded?: string;
+  encodings?: string[];
 }
 
 const AGENT_ADDRESS = /\b(dear |attention |note to )?(ai|assistant|agent|claude|chatgpt|gpt|copilot|llm|language model)\b[,:]\s*(you|please|ignore|do|now|stop|execute|send|forward)/i;
@@ -35,11 +39,18 @@ export function scanOutput(text: string, knownToolNames: string[] = []): ShieldF
       text: '',
     });
   }
-  for (const m of text.matchAll(BASE64_RE)) {
-    const d = decodeBase64Printable(m[0]);
-    if (d && INSTRUCTION_PATTERNS.some((p) => p.re.test(d)))
-      out.push({ kind: 'encoded_payload', severity: 'high', label: `Encoded instructions: “${d.slice(0, 80)}”`, start: m.index!, end: m.index! + m[0].length, text: m[0] });
-  }
+  // Secret-code decoder: Morse, base64, hex, URL encoding, ROT13, reversed text, leetspeak, invisible tags (2 levels).
+  for (const e of findEncodedInstructions(text))
+    out.push({
+      kind: 'encoded_instruction',
+      severity: e.severity,
+      label: `Encoded instruction (${e.span.chain.map((c) => ENCODING_LABELS[c]).join(' → ')}): “${e.span.decoded.trim().slice(0, 100)}”`,
+      start: e.span.start,
+      end: e.span.end,
+      text: e.span.original.slice(0, 400),
+      decoded: e.span.decoded.slice(0, 400),
+      encodings: e.span.chain,
+    });
   for (const name of knownToolNames.filter((n) => n.length >= 5)) {
     const re = new RegExp(`\\b(call|use|invoke|run)\\b[^.\\n]{0,20}\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
     const m = text.match(re);
@@ -53,6 +64,8 @@ export const UNTRUSTED_MARKER = '[Zoro Output Shield] The content below came fro
 /** Apply the configured action to a text result. Returns the transformed text and whether anything changed. */
 export function applyShield(text: string, findings: ShieldFinding[], action: ShieldAction): { text: string | null; action: ShieldAction | 'none'; note: string | null } {
   const material = findings.filter((f) => f.severity !== 'low' && f.severity !== 'info');
+  // An encoded instruction is withheld, never just annotated: the model could still decode an annotated copy.
+  if (material.some((f) => f.kind === 'encoded_instruction') && (action === 'pass' || action === 'annotate')) action = 'redact';
   if (!material.length || action === 'pass') return { text, action: material.length && action === 'pass' ? 'pass' : 'none', note: null };
   if (action === 'annotate') return { text: `${UNTRUSTED_MARKER}\n\n${text}`, action, note: `${material.length} suspicious segment(s) annotated` };
   if (action === 'block') return { text: null, action, note: `Result withheld: ${material.length} suspicious segment(s)` };

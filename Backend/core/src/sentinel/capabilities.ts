@@ -1,3 +1,4 @@
+import { irreversibleSignals } from '../irreversible';
 import type { Capability, CapabilityEvidence, Definition, SinkType, SourceLabel } from '../types';
 
 interface CapRule {
@@ -120,6 +121,8 @@ export function inferCapabilities(def: Definition): CapabilityEvidence[] {
   // database_read from the word "query" alone in a search tool is too weak.
   const dbr = found.get('database_read');
   if (dbr && [...dbr].every((s) => /“(query|records?)”/i.test(s))) found.delete('database_read');
+  // Undo-impossible brake: delete/drop/destroy/transfer/… in the name or first sentence, or a destructiveHint.
+  for (const s of irreversibleSignals(def)) add('irreversible_action', s);
   return [...found.entries()].map(([capability, signals]) => ({ capability, signals: [...signals].slice(0, 5) }));
 }
 

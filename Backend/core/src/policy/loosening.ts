@@ -134,6 +134,38 @@ function compareRule(a: Rule, b: Rule): LooseningChange[] {
       if (a.humanSeal && !n.humanSeal) push('Human Seal no longer required for high-impact calls');
       break;
     }
+    case 'irreversible_brake': {
+      const n = b as typeof a;
+      if (relaxed(a.action, n.action)) push(`Irreversible actions: ${a.action} → ${n.action}`);
+      if (a.humanSeal && !n.humanSeal) push('Human Seal no longer required for irreversible actions');
+      if (n.cooldownSeconds < a.cooldownSeconds) push(`Irreversible-action cooldown shortened (${a.cooldownSeconds}s → ${n.cooldownSeconds}s)`);
+      const added = n.exempt.filter((x) => !a.exempt.includes(x));
+      if (added.length) push(`Exempted from the irreversible brake: ${added.join(', ')}`);
+      break;
+    }
+    case 'transaction_guard': {
+      const n = b as typeof a;
+      if (relaxed(a.action, n.action)) push(`Risky transactions: ${a.action} → ${n.action}`);
+      if (a.humanSeal && !n.humanSeal) push('Human Seal no longer required for risky transactions');
+      if (n.largeAmount > a.largeAmount) push(`Large-transfer threshold raised (${a.largeAmount} → ${n.largeAmount})`);
+      const before = a.knownRecipients.map((y) => y.toLowerCase());
+      const added = n.knownRecipients.filter((x) => !before.includes(x.toLowerCase()));
+      if (added.length) push(`New trusted recipient(s): ${added.join(', ')}`);
+      break;
+    }
+    case 'new_power_alarm': {
+      const n = b as typeof a;
+      if (a.capabilities.some((c) => !n.capabilities.includes(c))) push('Fewer capabilities trigger the new-power alarm');
+      if (a.humanSealFor.some((c) => !n.humanSealFor.includes(c))) push('Human Seal no longer required for some new powers');
+      break;
+    }
+    case 'known_vulnerability': {
+      const n = b as typeof a;
+      const R = ['low', 'medium', 'high', 'critical'];
+      if (R.indexOf(n.minSeverity) > R.indexOf(a.minSeverity)) push(`Vulnerability gate only for ${n.minSeverity}+ (was ${a.minSeverity}+)`);
+      if (relaxed(a.action, n.action)) push(`Known vulnerabilities: ${a.action} → ${n.action}`);
+      break;
+    }
   }
   return out;
 }

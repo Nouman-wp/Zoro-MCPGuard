@@ -30,7 +30,8 @@ export type FindingCategory =
   | 'auditor_manipulation'
   | 'artifact_mismatch'
   | 'behavioral_anomaly'
-  | 'output_injection';
+  | 'output_injection'
+  | 'encoded_instruction';
 
 export const FINDING_CATEGORY_LABELS: Record<FindingCategory, string> = {
   hidden_instructions: 'Hidden instructions',
@@ -45,6 +46,7 @@ export const FINDING_CATEGORY_LABELS: Record<FindingCategory, string> = {
   artifact_mismatch: 'Artifact mismatch (code changed)',
   behavioral_anomaly: 'Behavioral anomaly',
   output_injection: 'Output injection',
+  encoded_instruction: 'Encoded instruction (decoded)',
 };
 
 export type Capability =
@@ -58,7 +60,8 @@ export type Capability =
   | 'credential_access'
   | 'database_read'
   | 'database_write'
-  | 'external_content_ingestion';
+  | 'external_content_ingestion'
+  | 'irreversible_action';
 
 export const CAPABILITY_LABELS: Record<Capability, string> = {
   read_local_files: 'Read local files',
@@ -72,6 +75,7 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   database_read: 'Database read',
   database_write: 'Database write',
   external_content_ingestion: 'External content ingestion',
+  irreversible_action: 'Irreversible action',
 };
 
 /** Capabilities that make a tool "high impact" (stricter thresholds, no silent auto-release). */
@@ -83,6 +87,7 @@ export const HIGH_IMPACT_CAPABILITIES: Capability[] = [
   'write_local_files',
   'credential_access',
   'database_write',
+  'irreversible_action',
 ];
 
 export type ChangeClass = 'new' | 'cosmetic' | 'documentation' | 'functional' | 'capability_expansion' | 'suspicious';
