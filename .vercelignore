@@ -1,0 +1,8 @@
+# Only the web app and the packages it builds from are needed on Vercel.
+/docs/
+/.zoro-data/
+**/.next/
+**/node_modules/
+*.log
+.env
+.env.local

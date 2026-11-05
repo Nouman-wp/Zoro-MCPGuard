@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output and caches
+.next/
+out/
+dist/
+*.tsbuildinfo
+coverage/
+
+# Secrets: keep .env.example, never the real files
+.env
+.env*.local
+
+# Hosting links (recreated when you link a project)
+.vercel/
+
+# Local data and logs
+.zoro-data/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
