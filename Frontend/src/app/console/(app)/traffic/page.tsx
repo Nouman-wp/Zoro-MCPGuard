@@ -74,15 +74,21 @@ export default function TrafficPage() {
                 </Td>
                 <Td className="text-[13px]">{r.agent}</Td>
                 <Td>
-                  <Link href={`/console/tools/${r.server_id}/tool/${encodeURIComponent(r.tool)}`} className="font-mono text-[13px] text-quartz hover:underline">
-                    {r.server_label}/{r.tool}
-                  </Link>
+                  {r.server_id === 'builtin' ? (
+                    <span className="font-mono text-[13px] text-quartz">
+                      {r.tool} <Badge tone="info" className="ml-1">built-in tool</Badge>
+                    </span>
+                  ) : (
+                    <Link href={`/console/tools/${r.server_id}/tool/${encodeURIComponent(r.tool)}`} className="font-mono text-[13px] text-quartz hover:underline">
+                      {r.server_label}/{r.tool}
+                    </Link>
+                  )}
                 </Td>
                 <Td className="font-mono text-[12px] text-ash">{shortHash(r.fingerprint)}</Td>
                 <Td>
                   <DecisionBadge decision={r.decision} observe={r.observe && r.enforced_decision !== 'allow'} />
                   {r.flows.length > 0 && <Badge tone="warn" className="ml-1">flow</Badge>}
-                  {r.outcome !== 'executed' && <p className="mt-0.5 text-[11px] text-ash">{outcomeLabel(r.outcome, r.approval)}</p>}
+                  {r.outcome !== 'executed' && r.outcome !== 'hook_passthrough' && <p className="mt-0.5 text-[11px] text-ash">{r.outcome === 'hook_decision' ? 'decided by the Claude Code hook' : outcomeLabel(r.outcome, r.approval)}</p>}
                 </Td>
                 <Td className="font-mono text-[12px]">{r.rule ?? '—'}</Td>
                 <Td className="text-[13px]">{ms(r.overhead_ms)}</Td>

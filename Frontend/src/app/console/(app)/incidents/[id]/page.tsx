@@ -103,6 +103,20 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
               </div>
             </Card>
           )}
+          {inc.type === 'config_tamper' && (() => {
+            const ev = inc.evidence as { path?: string; addedLines?: string[]; added?: string[]; bypass?: string[]; removed?: string[]; hooksChanged?: boolean };
+            return (
+              <Card>
+                <CardHeader title="What changed" subtitle={ev.path ?? 'AI client configuration'} />
+                <div className="space-y-2 p-5 text-[13.5px]">
+                  {ev.bypass && ev.bypass.length > 0 && <Notice tone="danger">{ev.bypass.length} server(s) now bypass the Zoro bridge: {ev.bypass.join(', ')}</Notice>}
+                  {ev.hooksChanged && <Notice tone="danger">Hooks changed — hooks run commands automatically whenever the agent acts.</Notice>}
+                  {ev.removed && ev.removed.length > 0 && <p className="text-mist">Removed: {ev.removed.join(', ')}</p>}
+                  {ev.addedLines && ev.addedLines.length > 0 && <CodeBlock code={ev.addedLines.map((l) => `+ ${l}`).join(String.fromCharCode(10))} filename="added lines" language="text" maxHeight={260} />}
+                </div>
+              </Card>
+            );
+          })()}
           {inc.evidence.flows && inc.evidence.flows.length > 0 && (
             <Card>
               <CardHeader title="Data-flow chain" subtitle="Where the content came from, and where it was about to go" />
@@ -142,7 +156,16 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
           <Card highlight>
             <CardHeader title="What you can do" subtitle="The protective choice is the default" />
             <div className="flex flex-col gap-2 p-5">
-              <Button variant="primary" onClick={() => void setStatus('resolved', 'Kept blocked; resolved from the Console')}>Keep blocked</Button>
+              {inc.type === 'config_tamper' && Boolean(inc.evidence.restorable) && (
+                <Button variant="primary" onClick={() => void api('/api/console/watchdog/restore', { json: { path: inc.evidence.path, incidentId: inc.id } }).then(r.reload).catch((e) => setError((e as Error).message))}>
+                  Restore the previous version
+                </Button>
+              )}
+              {inc.type === 'config_tamper' ? (
+                <Button variant="subtle" onClick={() => void setStatus('resolved', 'The change was made by the user; accepted.')}>It was me — keep the change</Button>
+              ) : (
+                <Button variant="primary" onClick={() => void setStatus('resolved', 'Kept blocked; resolved from the Console')}>Keep blocked</Button>
+              )}
               {inc.evidence.overridable && !pending && <Button variant="ghost" onClick={() => void override()}>Override this one call with a Human Seal</Button>}
               {pending && <Button variant="ghost" onClick={() => setSeal(pending)}>Continue {pending.ref} (Human Seal)</Button>}
               {d.server && d.server.mode !== 'disabled' && <Button variant="subtle" onClick={() => void api(`/api/console/incidents/${id}/disable-server`, { json: {} }).then(r.reload)}>Disable {d.server.name}</Button>}

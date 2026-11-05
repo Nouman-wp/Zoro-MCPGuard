@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bot } from 'lucide-react';
+import { Bot, Sparkles } from 'lucide-react';
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, LoadingBlock, Modal, Notice, PageHeader, Table, Td, inputCls } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import { fmtDate, timeAgo } from '@/lib/format';
@@ -19,8 +19,14 @@ interface Agent {
   incidents: number;
 }
 
+interface Powers {
+  agents: { agent: string; lab: boolean; powers: { capability: string; label: string; state: 'approved' | 'pending'; baseline: boolean; firstSeen: number; approvedAt: number | null }[]; gainedSinceApproval: { capability: string; label: string; state: string; firstSeen: number; approvedAt: number | null }[] }[];
+}
+
 export default function AgentsPage() {
   const r = useApi<Agent[]>('/api/console/agents', { on: ['call'] });
+  const powers = useApi<Powers>('/api/console/powers', { on: ['power', 'approval', 'call'] });
+  const powersOf = (id: string) => powers.data?.agents.find((p) => p.agent === id);
   const [edit, setEdit] = useState<Agent | null>(null);
   const [tools, setTools] = useState('');
   return (
@@ -51,6 +57,33 @@ export default function AgentsPage() {
                   <Badge tone="neutral">{a.incidents} incident(s)</Badge>
                   {a.declaration && <Badge tone="info">declaration enforced · {a.declaration.allowedTools?.length ?? 0} tools</Badge>}
                 </div>
+                {(() => {
+                  const p = powersOf(a.id);
+                  if (!p) return null;
+                  return (
+                    <div className="rounded-[10px] border border-inkline bg-deep-sea p-3">
+                      <p className="flex items-center gap-2 text-[12px] uppercase tracking-wider text-ash"><Sparkles className="size-3.5" aria-hidden /> Abilities</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {p.powers.filter((x) => x.baseline).map((x) => <Badge key={x.capability} tone="neutral">{x.label}</Badge>)}
+                      </div>
+                      {p.gainedSinceApproval.length > 0 ? (
+                        <div className="mt-3">
+                          <p className="text-[13px] text-quartz">Capabilities gained since last approval</p>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {p.gainedSinceApproval.map((x) => (
+                              <Badge key={x.capability} tone={x.state === 'pending' ? 'warn' : 'ok'}>
+                                {x.label} · {x.state === 'pending' ? `pending since ${timeAgo(x.firstSeen)}` : `approved ${x.approvedAt ? timeAgo(x.approvedAt) : ''}`}
+                              </Badge>
+                            ))}
+                          </div>
+                          {p.gainedSinceApproval.some((x) => x.state === 'pending') && <p className="mt-1.5 text-[12.5px] text-ash">The first use of a pending ability goes through Approvals (World ID for money).</p>}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-[12.5px] text-ash">No new abilities since its first approval.</p>
+                      )}
+                    </div>
+                  );
+                })()}
                 <Table head={['Tool', 'Calls', 'Last']}>
                   {a.tools.map((t) => (
                     <tr key={`${t.server_label}/${t.tool}`}>

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { Badge, Button, Card, CardHeader, CodeBlock, EmptyState, ErrorState, LoadingBlock, Notice, PageHeader, Table, Td } from '@/components/ui';
 import { HumanSealModal, type SealableApproval } from '@/components/human-seal';
+import { RiskEvidenceBlock, type RiskEvidence } from '@/components/console/risk-evidence';
 import { api, useApi } from '@/lib/api';
 import { fmtDate, shortHash, timeAgo } from '@/lib/format';
 
@@ -22,10 +23,10 @@ interface Approval extends SealableApproval {
   rule: string | null;
   incident_id: string | null;
   action: unknown;
-  evidence: { flows?: { sourceTool: string; sourceServer: string; sourceLabel: string; argument: string; matched: string }[]; capabilities?: string[] } | null;
+  evidence: ({ flows?: { sourceTool: string; sourceServer: string; sourceLabel: string; argument: string; matched: string }[]; capabilities?: string[] } & RiskEvidence) | null;
 }
 
-const KIND: Record<string, string> = { tool_call: 'Tool call', override: 'Override a block', policy_change: 'Weaken policy', release: 'Release a version', namespace_claim: 'Namespace claim', dispute: 'Open a dispute', danger_zone: 'Danger zone', mode_change: 'Observe mode', artifact_release: 'Accept new code' };
+const KIND: Record<string, string> = { tool_call: 'Tool call', override: 'Override a block', policy_change: 'Weaken policy', release: 'Release a version', namespace_claim: 'Namespace claim', dispute: 'Open a dispute', danger_zone: 'Danger zone', mode_change: 'Observe mode', artifact_release: 'Accept new code', lockdown_release: 'Lift lockdown', package_update: 'Package update' };
 const OUTCOME_TONE: Record<string, 'ok' | 'danger' | 'neutral' | 'warn'> = { executed: 'ok', approved: 'ok', denied: 'danger', cancelled: 'neutral', expired: 'warn', invalid: 'danger' };
 
 export default function ApprovalsPage() {
@@ -69,6 +70,7 @@ export default function ApprovalsPage() {
                   <div className="flex-1 space-y-3 px-5 py-4">
                     <p className="text-[15px] font-medium text-quartz">{a.summary}</p>
                     <p className="text-[14px] text-mist">{a.reason}</p>
+                    <RiskEvidenceBlock evidence={a.evidence} />
                     {a.evidence?.flows?.map((f, i) => (
                       <p key={i} className="rounded-md border border-inkline bg-abyss p-2 text-[13px] text-mist">
                         {f.sourceServer}/{f.sourceTool} ({f.sourceLabel.replace(/_/g, ' ')}) → <span className="font-mono">{f.argument}</span>: <span className="font-mono text-warn">{f.matched.slice(0, 80)}</span>
