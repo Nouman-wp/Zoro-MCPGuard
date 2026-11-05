@@ -88,7 +88,8 @@ function finish(row: HumanSealRow, status: HumanSealStatus, error: string | null
       status, error, extra.nullifier ?? null, extra.response === undefined ? null : JSON.stringify(extra.response), status, 'verified', Date.now(), row.id);
   } catch (e) {
     if (String((e as Error).message).includes('UNIQUE')) {
-      run("UPDATE human_seals SET status = 'replay', error = ? WHERE id = ?", 'This World ID proof was already used for this action', row.id);
+      // The nullifier is kept server-side (never returned to clients) so an organization can recognize a returning member.
+      run("UPDATE human_seals SET status = 'replay', error = ?, response = ? WHERE id = ?", 'This World ID proof was already used for this action', JSON.stringify({ replayOf: extra.nullifier ?? null }), row.id);
       appendLog('human_seal', 'Human Seal rejected: replayed proof', { id: row.id }, row.approval_id);
       bus.emitEvent('human_seal', { id: row.id, status: 'replay', approvalId: row.approval_id });
       return 'replay' as const;
