@@ -1,0 +1,31 @@
+{
+  "name": "@zoro/blockchain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Zoro on-chain layer: ENSv2 registry client (Ethereum Sepolia), Hedera ledger client (topics, seal badge NFTs, mirror node), the Auditor signing key, and the setup scripts that provision them.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./config": "./src/config.ts",
+    "./cache": "./src/cache.ts",
+    "./auditor": "./src/auditor.ts",
+    "./ens": "./src/ens.ts",
+    "./hedera": "./src/hedera.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "setup:ens": "tsx scripts/setup-ens.ts",
+    "setup:hedera": "tsx scripts/setup-hedera.ts"
+  },
+  "dependencies": {
+    "@hashgraph/sdk": "^2.81.0",
+    "@zoro/core": "workspace:*",
+    "dotenv": "^17.2.3",
+    "viem": "^2.57.11"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3"
+  }
+}
