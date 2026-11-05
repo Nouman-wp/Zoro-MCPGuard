@@ -1,0 +1,114 @@
+# Render Blueprint for the Zoro backend (MCP gateway, Sentinel auditor, Attack Lab, Console and public APIs).
+# Create it once from the Render Dashboard: New → Blueprint → this repository. Every later push to main redeploys it.
+# Values marked `sync: false` are entered in the Dashboard (Render asks for them when the Blueprint is first created;
+# add or change them later under the service's Environment tab). See .env.example for what each variable does.
+services:
+  - type: web
+    name: zoro-backend
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    autoDeployTrigger: commit
+    # The pnpm workspace lives at the repository root; install only the daemon and the packages it depends on.
+    buildCommand: corepack enable pnpm || npm install -g pnpm@10.18.3; pnpm install --frozen-lockfile --filter "@zoro/daemon..."
+    startCommand: cd Backend/daemon && node --import tsx src/main.ts
+    # Answers from memory only (no database, chain or auditor), so it is safe for health checks and keep-alive pings.
+    healthCheckPath: /healthz
+    # Frontend-only changes do not redeploy the backend.
+    buildFilter:
+      paths:
+        - Backend/**
+        - Blockchain/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - tsconfig.base.json
+        - render.yaml
+    envVars:
+      # --- Runtime ---
+      - key: NODE_VERSION
+        value: "24"
+      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
+        value: "0"
+      - key: ZORO_HOST
+        value: 0.0.0.0
+      # Render's free instances have no persistent disk: this directory is wiped on every restart and redeploy.
+      - key: ZORO_DATA_DIR
+        value: /tmp/zoro-data
+      - key: ZORO_EPHEMERAL_STORAGE
+        value: "true"
+
+      # --- Web app (Vercel) ---
+      - key: ZORO_WEB_ORIGIN
+        value: https://zoro.caspx.in
+      - key: ZORO_PUBLIC_URL
+        value: https://zoro.caspx.in
+      - key: ZORO_CORS_ORIGINS
+        value: https://zoro-seven-omega.vercel.app
+
+      # --- Access tokens: generated once by Render and kept across deploys ---
+      - key: ZORO_CONSOLE_TOKEN
+        generateValue: true
+      - key: ZORO_GATEWAY_TOKEN
+        generateValue: true
+
+      # --- Auditor identity: must stay fixed, or attestations change signer on every restart ---
+      - key: ZORO_AUDITOR_PRIVATE_KEY
+        sync: false
+
+      # --- Sentinel AI layer and Ask Zoro ---
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SENTINEL_MODEL
+        value: openai/gpt-oss-120b
+      - key: ASK_MODEL
+        value: openai/gpt-oss-120b
+      - key: ASK_GUARD_MODEL
+        value: openai/gpt-oss-20b
+      - key: SENTINEL_REQUIRE_AI
+        value: "true"
+      - key: SENTINEL_SEAL_LIFETIME_DAYS
+        value: "28"
+
+      # --- ENSv2 registry (Ethereum Sepolia) ---
+      - key: ENS_NETWORK
+        value: sepolia
+      - key: ENS_RPC_URL
+        value: https://ethereum-sepolia-rpc.publicnode.com
+      - key: ZORO_ENS_ROOT
+        sync: false
+      - key: ZORO_ENS_RESOLVER
+        sync: false
+      - key: ZORO_ENS_REGISTRY
+        sync: false
+      - key: ZORO_ENS_LAB_RESOLVER
+        sync: false
+      - key: ENS_OPERATOR_PRIVATE_KEY
+        sync: false
+
+      # --- Hedera ledger (testnet) ---
+      - key: HEDERA_NETWORK
+        value: testnet
+      - key: HEDERA_OPERATOR_ID
+        sync: false
+      - key: HEDERA_OPERATOR_KEY
+        sync: false
+      - key: HEDERA_REGISTRY_TOPIC_ID
+        sync: false
+      - key: HEDERA_LAB_TOPIC_ID
+        sync: false
+      - key: HEDERA_ORG_TOPIC_ID
+        sync: false
+      - key: HEDERA_BADGE_TOKEN_ID
+        sync: false
+
+      # --- World ID (Human Seal); staging uses test identities from the World ID Simulator ---
+      - key: WORLD_ENVIRONMENT
+        value: staging
+      - key: WORLD_APP_ID
+        sync: false
+      - key: WORLD_RP_ID
+        sync: false
+      - key: WORLD_SIGNING_KEY
+        sync: false
