@@ -20,7 +20,14 @@ export type IncidentType =
   | 'flapping'
   | 'observe_would_block'
   | 'server_offline'
-  | 'malformed_manifest';
+  | 'malformed_manifest'
+  | 'lockdown'
+  | 'new_power'
+  | 'config_tamper'
+  | 'skill_risk'
+  | 'package_risk'
+  | 'known_vulnerability'
+  | 'builtin_tool';
 
 export interface IncidentRow {
   id: string;

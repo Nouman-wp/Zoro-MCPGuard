@@ -6,7 +6,7 @@ import { all, get, json, nextSeq, run } from './db';
 import { addIncidentEvent, notify } from './incidents';
 import { getHumanSeal, markExecuted } from './humanseal';
 
-export type ApprovalKind = 'tool_call' | 'override' | 'policy_change' | 'release' | 'namespace_claim' | 'dispute' | 'danger_zone' | 'mode_change' | 'artifact_release';
+export type ApprovalKind = 'tool_call' | 'override' | 'policy_change' | 'release' | 'namespace_claim' | 'dispute' | 'danger_zone' | 'mode_change' | 'artifact_release' | 'lockdown_release' | 'package_update';
 export type ApprovalStatus = 'pending' | 'approved' | 'executed' | 'denied' | 'cancelled' | 'expired' | 'invalid';
 
 export interface ApprovalRow {

@@ -8,8 +8,16 @@ let cached: Policy | null = null;
 export function getPolicy(): Policy {
   if (cached) return cached;
   const row = get<{ body: string }>('SELECT body FROM policy WHERE id = 1');
-  if (row) cached = json<Policy>(row.body, defaultPolicy('standard'));
-  else {
+  if (row) {
+    cached = json<Policy>(row.body, defaultPolicy('standard'));
+    const present = new Set(cached.rules.map((r) => r.type));
+    const added = defaultPolicy(cached.profile).rules.filter((r) => ['irreversible_brake', 'transaction_guard', 'new_power_alarm', 'known_vulnerability'].includes(r.type) && !present.has(r.type) && !cached!.rules.some((x) => x.id === r.id));
+    if (added.length) {
+      cached = { ...cached, rules: [...cached.rules, ...added] };
+      run('UPDATE policy SET body = ?, updated_at = ? WHERE id = 1', JSON.stringify(cached), Date.now());
+      appendLog('policy_change', `Added new protective rules: ${added.map((r) => r.id).join(', ')}`, { added: added.map((r) => r.id) });
+    }
+  } else {
     cached = defaultPolicy('standard');
     run('INSERT INTO policy(id, body, updated_at) VALUES(1, ?, ?)', JSON.stringify(cached), Date.now());
   }
