@@ -4,10 +4,11 @@ import { gateway } from './gateway/gateway';
 import { mcpSessionCount } from './gateway/http';
 import { auditorAccount, auditorKeySource } from './keys';
 import { getPolicy } from './policy';
+import { getLockdown } from './lockdown';
 import { aiConfigured } from './sentinel/ai';
 import { queueDepth } from './sentinel/runner';
 
-export type ProtectionState = 'protected' | 'attention' | 'degraded' | 'observe' | 'not_configured';
+export type ProtectionState = 'protected' | 'attention' | 'degraded' | 'observe' | 'not_configured' | 'lockdown';
 
 export interface Dependency {
   id: 'auditor' | 'registry' | 'ledger' | 'human_seal' | 'gateway' | 'storage';
@@ -77,7 +78,11 @@ export function protectionStatus() {
   const degraded = deps.filter((d) => d.state === 'degraded' || d.state === 'down');
   let state: ProtectionState;
   let headline: string;
-  if (servers.length === 0) {
+  const lock = getLockdown();
+  if (lock) {
+    state = 'lockdown';
+    headline = `Lockdown: every agent is frozen (${lock.source === 'org' ? `by ${lock.orgName ?? 'your organization'}` : `by ${lock.by}`})`;
+  } else if (servers.length === 0) {
     state = 'not_configured';
     headline = 'No servers protected yet';
   } else if (observe) {
@@ -93,7 +98,7 @@ export function protectionStatus() {
     state = 'protected';
     headline = `Protecting ${servers.length} server(s)`;
   }
-  return { state, headline, observe, openCritical, pendingApprovals, dependencies: deps, environment: environment() };
+  return { state, headline, observe, openCritical, pendingApprovals, dependencies: deps, environment: environment(), lockdown: lock };
 }
 
 export function environment() {

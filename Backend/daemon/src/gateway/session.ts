@@ -16,7 +16,10 @@ import {
   actionDigest,
   applyShield,
   buildRefusal,
+  decodeTransactionCall,
+  detectIrreversibleCall,
   evaluateCall,
+  rulesOf,
   maskArgs,
   scanOutput,
   shieldActionFor,
@@ -34,6 +37,10 @@ import { VERSION, config } from '../config';
 import { all, get, run } from '../db';
 import { incidentRef, raiseIncident } from '../incidents';
 import { getPolicy, policyFor } from '../policy';
+import { getLockdown } from '../lockdown';
+import { approvePowers, pendingPowersFor, syncAgentPowers } from '../powers';
+import { vulnerabilitiesFor } from '../recall';
+import type { Capability } from '@zoro/core';
 import { gateway, type ExposedEntry, type SessionLike } from './gateway';
 
 const SECRET_KEY = /pass(word)?|secret|token|api[_-]?key|auth|credential|private[_-]?key|cookie|mnemonic|seed/i;
@@ -106,7 +113,11 @@ export class ClientSession implements SessionLike {
   }
 
   private register() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: gateway.exposed('tool', this.lab).map((e) => e.definition as never) }));
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      const exposed = gateway.exposed('tool', this.lab);
+      this.syncPowers(exposed);
+      return { tools: exposed.map((e) => e.definition as never) };
+    });
     this.server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
       // Progress is only sent when the client asked for it (MCP progressToken); clients with idle timeouts use it to keep waiting.
       const token = req.params._meta?.progressToken;
@@ -172,6 +183,17 @@ export class ClientSession implements SessionLike {
     return res;
   }
 
+  /** New-power alarm: record what this agent can do now; abilities gained since its baseline become pending. */
+  private syncPowers(exposed: ExposedEntry[]) {
+    const caps = new Set<Capability>();
+    for (const e of exposed) for (const c of gateway.sealStateFor(e.serverId, 'tool', e.name).capabilities) caps.add(c);
+    try {
+      syncAgentPowers(this.agent, this.lab, [...caps]);
+    } catch {
+      /* bookkeeping must never break a tools/list */
+    }
+  }
+
   private recentCalls() {
     return all<{ server_id: string; tool: string; ts: number }>('SELECT server_id, tool, ts FROM calls WHERE ts > ? AND agent = ?', Date.now() - 3_600_000, this.agent).map((c) => ({ serverId: c.server_id, tool: c.tool, ts: c.ts }));
   }
@@ -198,7 +220,16 @@ export class ClientSession implements SessionLike {
     // The agent may have read an older list: if the live fingerprint is not the one it was shown, it is a mismatch.
     if (entry && st.fingerprint !== entry.fingerprint && st.state === 'sealed') st = { ...st, state: 'pending', detail: 'definition changed between list and call' };
 
+    this.syncPowers(gateway.exposed('tool', this.lab));
     const flows = this.flow.findFlows(args, sinkTypes(new Set(st.capabilities)));
+    const knownAddresses = [
+      ...rulesOf(policy, 'transaction_guard').flatMap((r) => r.knownRecipients),
+      ...rulesOf(policy, 'argument_constraint').flatMap((r) => (r.constraint.kind === 'allowlist' ? r.constraint.values : [])),
+    ];
+    const transaction = decodeTransactionCall(target.name, st.capabilities, args, { knownAddresses, largeAmount: rulesOf(policy, 'transaction_guard')[0]?.largeAmount });
+    const irreversible = detectIrreversibleCall({ tool: target.name, capabilities: st.capabilities, args });
+    const pendingCapabilities = pendingPowersFor(this.agent, st.capabilities);
+    const lock = getLockdown();
     const digest = actionDigest({ kind: 'tool_call', requestId: 'call', agent: this.agent, server: row.label, tool: target.name, fingerprint: st.fingerprint, args });
     const granted = findGranted(digest, ['tool_call']);
     const override = findGranted(digest, ['override']);
@@ -217,6 +248,11 @@ export class ClientSession implements SessionLike {
       flows,
       approvalGranted: Boolean(granted),
       overrideGranted: Boolean(override),
+      irreversible,
+      transaction,
+      pendingCapabilities,
+      vulnerabilities: row.lab ? [] : vulnerabilitiesFor(row.id),
+      lockdown: lock ? { by: lock.by, at: lock.at, reason: lock.reason } : null,
     };
     // Agent namespace declarations are enforced, so the public declaration and enforcement always match (§5.5).
     const agentDecl = get<{ declaration: string | null }>('SELECT declaration FROM agents WHERE id = ?', this.agent)?.declaration;
@@ -251,11 +287,17 @@ export class ClientSession implements SessionLike {
       const incident = flows.length
         ? raiseIncident({ type: 'data_flow', severity: 'high', title: `Suspicious data flow into ${row.label}/${target.name}`, summary: ev.reason, groupKey: `flow:${row.id}:${target.name}:${flows[0].sourceTool}`, serverId: row.id, tool: target.name, fingerprint: st.fingerprint, evidence: { flows, call: callId }, lab: Boolean(row.lab) })
         : null;
+      // A decoded risky transaction always leads with its plain sentence, whichever rule asked first.
+      const summary =
+        transaction && transaction.risk !== 'low' ? transaction.sentence :
+        ev.reasonCategory === 'irreversible' && irreversible.length ? `${this.agent} wants to run an action that cannot be undone: ${irreversible[0].reason}` :
+        ev.reasonCategory === 'new_capability' ? `${this.agent} wants to use a new power for the first time (${pendingCapabilities.join(', ').replace(/_/g, ' ')})` :
+        `${this.agent} wants to call ${row.label}/${target.name}`;
       const appr = createApproval({
         kind: 'tool_call', digest, action: { agent: this.agent, server: row.label, tool: target.name, fingerprint: st.fingerprint, args: maskArgs(args) },
-        summary: `${this.agent} wants to call ${row.label}/${target.name}`, reason: ev.reason, rule: ev.decidingRuleId, humanSeal: ev.humanSeal,
+        summary, reason: transaction && transaction.risk !== 'low' && ev.reasonCategory !== 'transaction_risk' ? `${ev.reason} Transaction: ${transaction.sentence} ${transaction.risks.join(' ')}`.trim() : ev.reason, rule: ev.decidingRuleId, humanSeal: ev.humanSeal,
         sessionId: this.id, agent: this.agent, serverId: row.id, tool: target.name, fingerprint: st.fingerprint,
-        evidence: { flows, trace: ev.trace, capabilities: st.capabilities, call: callId }, incidentId: incident?.id ?? null, lab: Boolean(row.lab),
+        evidence: { flows, trace: ev.trace, capabilities: st.capabilities, call: callId, transaction, irreversible, pendingCapabilities, reasonCategory: ev.reasonCategory }, incidentId: incident?.id ?? null, lab: Boolean(row.lab),
       });
       approvalId = appr.id;
       const until = Date.now() + this.approvalWaitSec * 1000;
@@ -285,7 +327,7 @@ export class ClientSession implements SessionLike {
     // --- block: structured refusal, never upstream text (§4.13) ---
     if (ev.decision === 'block') {
       outcome = 'blocked';
-      const sev = ev.reasonCategory === 'unsafe_verdict' || ev.reasonCategory === 'revoked' ? 'critical' : ['trust_chain_contradiction', 'tool_changed', 'artifact_changed', 'data_flow'].includes(ev.reasonCategory) ? 'high' : ev.reasonCategory === 'policy_denied' || ev.reasonCategory === 'rate_limited' ? 'low' : 'medium';
+      const sev = ev.reasonCategory === 'unsafe_verdict' || ev.reasonCategory === 'revoked' || ev.reasonCategory === 'lockdown' ? 'critical' : ['trust_chain_contradiction', 'tool_changed', 'artifact_changed', 'data_flow'].includes(ev.reasonCategory) ? 'high' : ev.reasonCategory === 'policy_denied' || ev.reasonCategory === 'rate_limited' ? 'low' : 'medium';
       const incident = raiseIncident({
         type: ev.reasonCategory === 'data_flow' ? 'data_flow' : 'blocked_call',
         severity: sev,
@@ -318,6 +360,20 @@ export class ClientSession implements SessionLike {
       record('block');
       return buildRefusal({ toolName: knownName, category: 'approval_required', incidentRef: null, kind: 'approval_expired' });
     }
+    // Undo-impossible brake: an approved irreversible action waits a visible cooldown, and lockdown still wins.
+    if (ev.cooldownSeconds && ev.cooldownSeconds > 0) {
+      const until = Date.now() + ev.cooldownSeconds * 1000;
+      while (Date.now() < until && !signal?.aborted) {
+        onProgress?.(ev.cooldownSeconds - Math.ceil((until - Date.now()) / 1000), ev.cooldownSeconds, `Irreversible action approved; running in ${Math.ceil((until - Date.now()) / 1000)}s. Press the panic button in the Zoro Console to stop it.`);
+        await new Promise((r) => setTimeout(r, 500));
+        if (getLockdown()) {
+          outcome = 'cancelled_lockdown';
+          record('block');
+          return buildRefusal({ toolName: knownName, category: 'lockdown', incidentRef: null, kind: 'blocked' });
+        }
+      }
+    }
+    if (ev.enforcedDecision === 'allow' && pendingCapabilities.length && (ctx.approvalGranted || approvalId)) approvePowers(this.agent, pendingCapabilities, approvalId);
     const u0 = performance.now();
     let result: Awaited<ReturnType<typeof up.callTool>>;
     try {

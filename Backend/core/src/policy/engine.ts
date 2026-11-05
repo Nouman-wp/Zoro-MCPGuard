@@ -170,7 +170,7 @@ export function evaluateCall(policy: Policy, ctx: CallContext): Evaluation {
   // 5b. New-power alarm: first use of a capability the agent gained since its last approval
   for (const r of rulesOf(policy, 'new_power_alarm')) {
     const hit = (ctx.pendingCapabilities ?? []).filter((c) => r.capabilities.includes(c));
-    if (hit.length) propose({ decision: 'ask', ruleId: r.id, reason: `New power: “${ctx.agent}” gained the ability to ${hit.join(', ').replace(/_/g, ' ')} since it was last approved. Its first use needs a person’s approval.`, category: 'new_capability', humanSeal: hit.some((c) => r.humanSealFor.includes(c)) }, r.type);
+    if (hit.length) propose({ decision: 'ask', ruleId: r.id, reason: `New power: “${ctx.agent}” gained new abilities since it was last approved (${hit.join(', ').replace(/_/g, ' ')}). Their first use needs a person’s approval.`, category: 'new_capability', humanSeal: hit.some((c) => r.humanSealFor.includes(c)) }, r.type);
   }
 
   // 5c. Transaction decoder: say what a sign/send call does, and ask when it is risky

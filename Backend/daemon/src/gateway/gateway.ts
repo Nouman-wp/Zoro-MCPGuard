@@ -515,7 +515,7 @@ export class Gateway implements UpstreamHooks {
       raiseIncident({
         type: 'revocation',
         severity: 'critical',
-        title: `A tool version you ${exposure.length ? 'used' : 'have installed'} was revoked: ${seal.name}`,
+        title: source === 'ledger' ? `Revoked by public record: ${seal.name ?? fp.slice(0, 10)}` : `A tool version you ${exposure.length ? 'used' : 'have installed'} was revoked: ${seal.name}`,
         summary: `${reason} ${exposure.length} call(s) were made while it was trusted${exposure.length ? `, between ${new Date(exposure[0].ts).toLocaleString()} and ${new Date(exposure[exposure.length - 1].ts).toLocaleString()}` : ''}. The exposure report lists them; it was generated on this machine and nothing was sent anywhere.`,
         groupKey: `revocation:${fp}`,
         serverId: live[0]?.server_id ?? null,
