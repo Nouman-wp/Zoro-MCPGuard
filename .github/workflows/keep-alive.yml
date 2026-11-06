@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Ping the backend health endpoint
         env:
-          # Set under Settings → Secrets and variables → Actions → Variables, e.g. https://zoro-backend.onrender.com
+          # Set under Settings → Secrets and variables → Actions → Variables, e.g. https://zoro-backend-r4qd.onrender.com
           BACKEND_URL: ${{ vars.ZORO_BACKEND_URL || secrets.ZORO_BACKEND_URL }}
           MANUAL: ${{ github.event_name == 'workflow_dispatch' }}
         run: |

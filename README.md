@@ -2,6 +2,9 @@
 
 Runtime integrity for MCP tools: a gateway that verifies every tool call against a public, tamper-evident seal.
 
+**Try it live:** https://zoro-mcp-guard.vercel.app/ (Attack Lab, Verify, Registry and the docs; nothing to install)
+**Repository:** https://github.com/Nouman-wp/Zoro-MCPGuard
+
 ## Layout
 
 | Folder | Package | What it is |
@@ -44,6 +47,7 @@ Decisions that deviate from the project guide are recorded in [`DECISIONS.md`](D
 Requires Node.js 22.13 or newer (24 recommended) and pnpm 10 (`corepack enable pnpm`).
 
 ```sh
+git clone https://github.com/Nouman-wp/Zoro-MCPGuard.git zoro && cd zoro
 pnpm install
 cp .env.example .env     # optional: AI, ENS, Hedera and World ID keys (each variable is described inside)
 pnpm dev                 # daemon on :7420, web on :3000
@@ -93,13 +97,35 @@ URL from the `ZORO_BACKEND_URL` repository variable (Settings → Secrets and va
 be run by hand from the Actions tab. A backend that does not answer fails the run. GitHub disables scheduled workflows
 in public repositories after 60 days without activity; re-enable it from the Actions tab if that happens.
 
-### Connecting an MCP client to a hosted gateway
+### Connecting Claude to the hosted gateway
 
-Use the bridge with the hosted URL and the gateway token from Render:
+The hosted gateway's MCP endpoint is `https://zoro-backend-r4qd.onrender.com/mcp`. Copy the gateway token from
+**Console → Settings → Gateway** (the value after `--token`) or from `ZORO_GATEWAY_TOKEN` in Render's Environment tab.
+Agents then see only the sealed tools of the servers added in that Console.
+
+Claude Code (one command):
 
 ```sh
-node Backend/daemon/bin/zoro-bridge.mjs --url https://<backend>/mcp --token <ZORO_GATEWAY_TOKEN> --client <name>
+claude mcp add --transport http zoro https://zoro-backend-r4qd.onrender.com/mcp --header "x-zoro-gateway-token: <GATEWAY_TOKEN>"
 ```
+
+Claude Desktop (Settings → Developer → Edit Config; needs this repository cloned and `pnpm install` run), then
+restart Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "zoro": {
+      "command": "node",
+      "args": ["<path to zoro>/Backend/daemon/bin/zoro-bridge.mjs", "--url", "https://zoro-backend-r4qd.onrender.com/mcp",
+               "--token", "<GATEWAY_TOKEN>", "--client", "claude-desktop"]
+    }
+  }
+}
+```
+
+To protect the servers already on your own machine instead, run Zoro locally (`pnpm dev`) and use
+**Console → Onboarding**: it rewrites your clients' configurations for you, with a backup.
 
 ## Deployment record
 
@@ -110,9 +136,9 @@ Update this table whenever any of these change.
 | Repository | https://github.com/Nouman-wp/Zoro-MCPGuard |
 | Frontend (production) | https://zoro-mcp-guard.vercel.app |
 | Backend | https://zoro-backend-r4qd.onrender.com (Render Blueprint from `render.yaml`, Singapore, free plan) |
-| Health endpoint | `<backend>/healthz` |
+| Health endpoint | https://zoro-backend-r4qd.onrender.com/healthz |
 | Keep-alive | GitHub Actions `keep-alive.yml`, every 10 minutes, URL from the `ZORO_BACKEND_URL` variable |
 | ENS | Sepolia — root `zoro-registry.eth` (operator 0xC751A280EB180B25DBAdd9b9CAB93dc97adf5727): UserRegistry 0x0C060388fB376C1CfD77ae070f4fD30d2B20F0ea, root resolver 0x5d5E256Abc73487a76D1B76f7769C92b07cc52Ac, Lab namespace `lab.zoro-registry.eth` resolver 0xabc17D74D77c3E3a467567F74B4d8f1302e1f466; auditor 0xD7ce942A01b80652f2B781Ee7aEd0bf92A771C7b |
 | Hedera | testnet — operator 0.0.11329412; registry topic 0.0.11329769, Lab topic 0.0.11329770, organization topic 0.0.11329771, badge token 0.0.11329772 |
 | World ID | staging (test identities) — app app_72e44df4d18c8dae291e479c4baedbf0 |
-| Last verified end to end | 2026-11-06 locally: AI-reviewed verdicts written to Hedera testnet and read back from the mirror node; hosted deployment not yet verified |
+| Last verified end to end | 2026-11-06 on the hosted deployment: Attack Lab and DeepWiki verdicts AI-reviewed, signed, written to ENS (namespace registered by the operator) and Hedera, and read back; MCP clients connected over HTTP and through the bridge |
