@@ -41,11 +41,11 @@ services:
 
       # --- Web app (Vercel) ---
       - key: ZORO_WEB_ORIGIN
-        value: https://zoro.caspx.in
+        value: https://zoro-mcp-guard.vercel.app
       - key: ZORO_PUBLIC_URL
-        value: https://zoro.caspx.in
+        value: https://zoro-mcp-guard.vercel.app
       - key: ZORO_CORS_ORIGINS
-        value: https://zoro-seven-omega.vercel.app
+        value: https://zoro-mcp-guard.vercel.app
 
       # --- Access tokens: generated once by Render and kept across deploys ---
       - key: ZORO_CONSOLE_TOKEN

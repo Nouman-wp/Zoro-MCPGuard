@@ -74,7 +74,7 @@ visitor's local MCP client configurations, so onboarding finds nothing there. Th
 ## 2026-11-06 — CORS allows only the production web origins
 
 **Decision.** The API accepts cross-origin browser calls only from `ZORO_WEB_ORIGIN` and `ZORO_CORS_ORIGINS`
-(`https://zoro.caspx.in` and `https://zoro-seven-omega.vercel.app`). Preview domains are not listed.
+(`https://zoro-mcp-guard.vercel.app`). Preview domains are not listed.
 
 **Why.** The web app reaches the API through same-origin Next.js rewrites, which are proxied server-side, so neither
 production nor preview deploys need CORS. The list exists only for direct browser calls and is kept minimal.

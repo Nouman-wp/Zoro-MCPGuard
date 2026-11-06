@@ -108,11 +108,11 @@ Update this table whenever any of these change.
 | Item | Value |
 | --- | --- |
 | Repository | https://github.com/Nouman-wp/Zoro-MCPGuard |
-| Frontend (production) | https://zoro.caspx.in · https://zoro-seven-omega.vercel.app |
-| Backend | pending: created from `render.yaml` (expected `https://zoro-backend.onrender.com`) |
+| Frontend (production) | https://zoro-mcp-guard.vercel.app |
+| Backend | https://zoro-backend-r4qd.onrender.com (Render Blueprint from `render.yaml`, Singapore, free plan) |
 | Health endpoint | `<backend>/healthz` |
 | Keep-alive | GitHub Actions `keep-alive.yml`, every 10 minutes, URL from the `ZORO_BACKEND_URL` variable |
-| ENS | Sepolia — not configured yet (needs a Sepolia name and test ETH) |
+| ENS | Sepolia — root `zoro-registry.eth`, operator 0xC751A280EB180B25DBAdd9b9CAB93dc97adf5727; `pnpm setup:ens` not run yet |
 | Hedera | testnet — operator 0.0.11329412; registry topic 0.0.11329769, Lab topic 0.0.11329770, organization topic 0.0.11329771, badge token 0.0.11329772 |
 | World ID | staging (test identities) — app app_72e44df4d18c8dae291e479c4baedbf0 |
 | Last verified end to end | 2026-11-06 locally: AI-reviewed verdicts written to Hedera testnet and read back from the mirror node; hosted deployment not yet verified |
