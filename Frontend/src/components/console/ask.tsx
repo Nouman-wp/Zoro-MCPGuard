@@ -11,22 +11,34 @@ interface AskResult {
   citations: string[];
   proposals: { rule: Record<string, unknown>; reading: string; explanation: string }[];
   model: string | null;
+  /** HashScan links for ledger citations (read through the Hedera Agent Kit). */
+  links?: Record<string, string>;
 }
 
-const SUGGESTIONS = ['Why was a tool blocked today?', 'Which of my tools can send data outside my company?', 'What changed on my servers this week?', 'Write a policy that only lets my research agent use read-only tools.'];
+const SUGGESTIONS = ['Why was a tool blocked today?', 'Which of my tools can send data outside my company?', 'What changed on my servers this week?', 'What has Zoro published on Hedera recently?', 'Write a policy that only lets my research agent use read-only tools.'];
 
-/** Turn [INC-12] / [tool:server/name] / [call:id] citations into links to the records they cite. */
-function Cited({ text }: { text: string }) {
-  const parts = text.split(/(\[(?:INC-\d+|APR-\d+|call:[\w-]+|tool:[\w.-]+\/[\w.-]+|rule:[\w.-]+)\])/g);
+const CITATION = /(\[(?:INC-\d+|APR-\d+|call:[\w-]+|tool:[\w.-]+\/[\w.-]+|rule:[\w.-]+|hcs:\d+\.\d+\.\d+#\d+|(?:topic|token|account):\d+\.\d+\.\d+|tx:\d+\.\d+\.\d+[-@]\d+[-.]\d+)\])/g;
+const citeCls = 'rounded bg-cobalt px-1 font-mono text-[12px] text-frosted hover:text-quartz';
+
+/** Turn [INC-12] / [tool:server/name] / [call:id] citations into links to the records they cite, and ledger citations into HashScan links. */
+function Cited({ text, links = {} }: { text: string; links?: Record<string, string> }) {
+  const parts = text.split(CITATION);
   return (
-    <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-mist">
+    <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-mist">
       {parts.map((p, i) => {
         const m = p.match(/^\[(.+)\]$/);
         if (!m) return <span key={i}>{p}</span>;
         const ref = m[1];
+        if (links[ref])
+          return (
+            <a key={i} href={links[ref]} target="_blank" rel="noreferrer" className={citeCls} title="Open on HashScan">
+              {ref}
+            </a>
+          );
+        if (/^(hcs|topic|token|account|tx):/.test(ref)) return <span key={i} className="font-mono text-[12px] text-frosted">{ref}</span>;
         const href = ref.startsWith('INC-') ? `/console/incidents?seq=${ref.slice(4)}` : ref.startsWith('APR-') ? '/console/approvals' : ref.startsWith('call:') ? `/console/traffic/${ref.slice(5)}` : ref.startsWith('rule:') ? '/console/policies' : `/console/servers`;
         return (
-          <Link key={i} href={href} className="rounded bg-cobalt px-1 font-mono text-[12px] text-frosted hover:text-quartz">
+          <Link key={i} href={href} className={citeCls}>
             {ref}
           </Link>
         );
@@ -69,7 +81,7 @@ export function AskZoroPanel({ open, onClose, enabled }: { open: boolean; onClos
           </button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <p className="text-[12px] text-ash">Answers come only from your local records and the public registry, and cite them. Ask Zoro cannot change anything: policies it writes are proposals you review.</p>
+          <p className="text-[12px] text-ash">Answers come only from your local records, the public registry and the Hedera ledger (read through the Hedera Agent Kit), and cite them. Ask Zoro cannot change anything: policies it writes are proposals you review, and its Hedera access is read-only.</p>
           {!enabled && <Notice tone="info" title="Not configured">Ask Zoro needs an AI provider. Set GROQ_API_KEY on the daemon to enable it (a free key from console.groq.com); nothing is sent anywhere until you do.</Notice>}
           {history.length === 0 && enabled && (
             <div className="space-y-2">
@@ -82,7 +94,7 @@ export function AskZoroPanel({ open, onClose, enabled }: { open: boolean; onClos
           )}
           {history.map((h, i) => (
             <div key={i} className={cx('rounded-[10px] p-3', h.role === 'user' ? 'ml-8 bg-cobalt' : 'border border-inkline bg-deep-sea')}>
-              {h.role === 'user' ? <p className="text-[14px] text-quartz">{h.content}</p> : <Cited text={h.content} />}
+              {h.role === 'user' ? <p className="text-[14px] text-quartz">{h.content}</p> : <Cited text={h.content} links={h.result?.links} />}
               {h.result?.proposals.map((p, n) => (
                 <div key={n} className="mt-3 rounded-[10px] border border-frosted/30 p-3">
                   <p className="text-[12px] uppercase tracking-wider text-frosted">Proposed rule (not saved)</p>

@@ -36,6 +36,19 @@ Decisions that deviate from the project guide are recorded in [`DECISIONS.md`](D
 | Global kill switch | A revocation on the public ledger blocks the version on every Zoro within seconds. |
 | Organizations | Employees join with World ID (one verified human, one member, whatever AI seat they use); the manager sees which MCP servers, packages, skills and clients each person uses. |
 
+## How Zoro uses Hedera
+
+No smart contracts: everything goes through Hedera's native services.
+
+| What | Hedera service | Code |
+| --- | --- | --- |
+| Public registry, Attack Lab and organization topics: signed verdicts, revocations, disputes, and Merkle roots of the audit log | Consensus Service (HCS), via `@hashgraph/sdk` | `Blockchain/src/hedera.ts`, `Backend/daemon/src/registry/outbox.ts`, `Backend/daemon/src/anchors.ts` |
+| Seal badge: one NFT per sealed tool version, burned on revocation | Token Service (HTS) | `Blockchain/src/hedera.ts` |
+| Global kill switch (gateways read revocations from the ledger) and the browser-side Verify page | Mirror Node REST API | `Backend/daemon/src/registry/watch.ts`, `Frontend/src/app/(site)/verify/page.tsx` |
+| Ask Zoro answers questions about the ledger (“What did Zoro publish today?”, “How much HBAR is left for ledger writes?”) and cites HashScan | Hedera Agent Kit query plugins (`@hashgraph/hedera-agent-kit`) | `Backend/daemon/src/agentkit.ts`, `Backend/daemon/src/ask.ts` |
+
+Ask Zoro's ledger access is read-only by construction: only five Agent Kit query tools are loaded (and each must be a query tool), the kit runs in `RETURN_BYTES` mode, and its SDK client has no operator key.
+
 ## Organizations
 
 1. On the Zoro your team can reach (the hosted one), open **Console → Organization**, create the organization and click **Create invite**.
