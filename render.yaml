@@ -76,14 +76,16 @@ services:
         value: sepolia
       - key: ENS_RPC_URL
         value: https://ethereum-sepolia-rpc.publicnode.com
+      # Public name and contract addresses written by `pnpm setup:ens`: safe to commit. The operator key, which
+      # registers namespaces for newly protected servers, is entered in the Dashboard.
       - key: ZORO_ENS_ROOT
-        sync: false
+        value: zoro-registry.eth
       - key: ZORO_ENS_RESOLVER
-        sync: false
+        value: "0x5d5E256Abc73487a76D1B76f7769C92b07cc52Ac"
       - key: ZORO_ENS_REGISTRY
-        sync: false
+        value: "0x0C060388fB376C1CfD77ae070f4fD30d2B20F0ea"
       - key: ZORO_ENS_LAB_RESOLVER
-        sync: false
+        value: "0xabc17D74D77c3E3a467567F74B4d8f1302e1f466"
       - key: ENS_OPERATOR_PRIVATE_KEY
         sync: false
 

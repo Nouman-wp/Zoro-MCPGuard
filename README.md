@@ -112,7 +112,7 @@ Update this table whenever any of these change.
 | Backend | https://zoro-backend-r4qd.onrender.com (Render Blueprint from `render.yaml`, Singapore, free plan) |
 | Health endpoint | `<backend>/healthz` |
 | Keep-alive | GitHub Actions `keep-alive.yml`, every 10 minutes, URL from the `ZORO_BACKEND_URL` variable |
-| ENS | Sepolia — root `zoro-registry.eth`, operator 0xC751A280EB180B25DBAdd9b9CAB93dc97adf5727; `pnpm setup:ens` not run yet |
+| ENS | Sepolia — root `zoro-registry.eth` (operator 0xC751A280EB180B25DBAdd9b9CAB93dc97adf5727): UserRegistry 0x0C060388fB376C1CfD77ae070f4fD30d2B20F0ea, root resolver 0x5d5E256Abc73487a76D1B76f7769C92b07cc52Ac, Lab namespace `lab.zoro-registry.eth` resolver 0xabc17D74D77c3E3a467567F74B4d8f1302e1f466; auditor 0xD7ce942A01b80652f2B781Ee7aEd0bf92A771C7b |
 | Hedera | testnet — operator 0.0.11329412; registry topic 0.0.11329769, Lab topic 0.0.11329770, organization topic 0.0.11329771, badge token 0.0.11329772 |
 | World ID | staging (test identities) — app app_72e44df4d18c8dae291e479c4baedbf0 |
 | Last verified end to end | 2026-11-06 locally: AI-reviewed verdicts written to Hedera testnet and read back from the mirror node; hosted deployment not yet verified |
