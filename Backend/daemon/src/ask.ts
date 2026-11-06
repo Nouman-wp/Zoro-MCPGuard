@@ -38,7 +38,7 @@ How Zoro works (reference):
 - Lockdown: the panic button. It freezes every agent and denies pending approvals until it is lifted.
 - Attack Lab: simulated malicious MCP servers (for example a rug pull) run through the real enforcement path so you can watch Zoro catch them.
 
-You cannot change anything. You cannot change policies, approve actions or dismiss incidents. If the user asks for a policy, call propose_policy_rule with a complete rule object; the user will review and save it through the normal protected flow. Write plainly for someone who is not a security expert; keep answers short.`;
+You cannot change anything. You cannot change policies, approve actions or dismiss incidents. If the user asks for a policy, call propose_policy_rule with a complete rule object; the user will review and save it through the normal protected flow. Write plainly for someone who is not a security expert; keep answers short. The Console shows answers as plain text, so do not use Markdown: no asterisks, headings or tables; put steps on separate numbered lines.`;
 
 const GATE_SYSTEM = `You decide whether a message sent to "Ask Zoro" is in scope. Zoro is a security gateway for AI agents: it fingerprints and audits MCP tools, holds changed tools in quarantine, enforces policies, asks a person to approve risky calls, records incidents, an audit log and data flows, and publishes verdicts to ENS and Hedera with World ID approvals.
 
