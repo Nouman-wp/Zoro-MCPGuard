@@ -30,7 +30,7 @@ import { listDisputes, openDispute } from '../disputes';
 import { gateway } from '../gateway/gateway';
 import { cancelHumanSeal, completeHumanSeal, getHumanSeal, startHumanSeal, usesTestIdentities } from '../humanseal';
 import { incidentRef, listIncidentEvents, setIncidentStatus, type IncidentRow } from '../incidents';
-import { clientSnippet, restoreClients, routeClient, scanClients, scanPermitted } from '../onboarding';
+import { publicMcpUrl, restoreClients, routeClient, scanClients, scanPermitted, settingsSnippet } from '../onboarding';
 import { getPolicy, policyHistory, validatePolicy } from '../policy';
 import { releaseHistory, startClaim, submitRelease, verifyClaim, instructionsFor, type ClaimMethod } from '../publisher';
 import { retryFailed, outboxStats, publishVerdict } from '../registry/outbox';
@@ -628,7 +628,7 @@ consoleApi.get('/reports/:kind', (c) => {
 consoleApi.get('/settings', (c) =>
   c.json({
     notifications: json(getSetting('notifications'), { webhookUrl: '', webhookMinSeverity: 'high', quietHours: null, desktop: true }),
-    gateway: { mcpUrl: `http://127.0.0.1:${config.port}/mcp`, refreshIntervalSec: config.refreshIntervalSec, approvalWaitSec: config.approvalWaitSec, approvalWindowSec: config.approvalWindowSec, snippet: clientSnippet('your-client') },
+    gateway: { mcpUrl: publicMcpUrl(), refreshIntervalSec: config.refreshIntervalSec, approvalWaitSec: config.approvalWaitSec, approvalWindowSec: config.approvalWindowSec, snippet: settingsSnippet('your-client') },
     auditor: { model: config.sentinel.model, requireAi: config.sentinel.requireAi, aiConfigured: config.sentinel.apiKeyPresent, sealLifetimeDays: config.sentinel.sealLifetimeDays, publicSubmission: getSetting('public_submission') !== 'off' },
     networks: {
       ens: { configured: isEnsConfigured(), network: config.ens.network, root: config.ens.root || null, resolver: config.ens.resolver || null, registry: config.ens.registry || null, rpcUrl: config.ens.rpcUrl, operatorConfigured: Boolean(config.ens.operatorKey), cacheTtlSec: config.ens.cacheTtlSec },

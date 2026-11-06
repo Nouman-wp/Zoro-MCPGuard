@@ -266,6 +266,15 @@ export function clientSnippet(client: string) {
   return { command: process.execPath, args: [BRIDGE_PATH, '--url', `http://127.0.0.1:${config.port}/mcp`, '--token', gatewayToken, '--client', client] };
 }
 
+/** The MCP endpoint clients should use: the public address on a hosted gateway, loopback on a local one. */
+export const publicMcpUrl = () => (config.allowedHosts[0] ? `https://${config.allowedHosts[0]}/mcp` : `http://127.0.0.1:${config.port}/mcp`);
+
+/** The snippet Settings shows. On a hosted gateway this server's own paths mean nothing to the reader, so it is portable. */
+export function settingsSnippet(client: string) {
+  if (!config.allowedHosts[0]) return clientSnippet(client);
+  return { command: 'node', args: ['<your Zoro folder>/Backend/daemon/bin/zoro-bridge.mjs', '--url', publicMcpUrl(), '--token', gatewayToken, '--client', client] };
+}
+
 // ---------- Claude Code hook: built-in tools (Bash, Write/Edit) and npm/npx/skill protection ----------
 
 const HOOK_MATCHER = 'Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|mcp__.*';

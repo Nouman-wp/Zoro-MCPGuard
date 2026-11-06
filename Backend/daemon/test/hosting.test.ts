@@ -35,3 +35,14 @@ describe('hosted deployment settings', () => {
     expect(storage?.state).toBe('degraded');
   });
 });
+
+describe('hosted client configuration', () => {
+  it('shows the public MCP address and a portable bridge command in Settings', async () => {
+    const { publicMcpUrl, settingsSnippet } = await import('../src/onboarding');
+    expect(publicMcpUrl()).toBe('https://zoro-backend.onrender.com/mcp');
+    const s = settingsSnippet('claude-desktop');
+    expect(s.command).toBe('node');
+    expect(s.args).toEqual(expect.arrayContaining(['--url', 'https://zoro-backend.onrender.com/mcp', '--client', 'claude-desktop']));
+    expect(s.args[0]).toContain('Backend/daemon/bin/zoro-bridge.mjs');
+  });
+});
