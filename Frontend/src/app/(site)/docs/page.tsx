@@ -4,6 +4,9 @@ import { PageIntro } from '@/components/site';
 
 export const metadata = { title: 'Documentation' };
 
+const SITE_URL = 'https://zoro-mcp-guard.vercel.app/';
+const REPO_URL = 'https://github.com/Nouman-wp/Zoro-MCPGuard.git';
+
 const TOC = [
   ['quick-start', 'Quick start'],
   ['architecture', 'Architecture'],
@@ -49,6 +52,9 @@ export default function DocsPage() {
       <article className="min-w-0 max-w-3xl">
         <PageIntro eyebrow="Documentation" a="Running Zoro" />
         <P>Zoro stands between AI agents and the MCP tools they use. Before an agent touches a tool, Zoro checks that the tool is exactly the version that was examined and approved. If anything has changed, the call does not happen, you see precisely what changed and why it matters, and the event is written to a public record.</P>
+        <P>
+          Try it live, with nothing to install: <a className="text-frosted" href={SITE_URL}>{SITE_URL}</a>. Launch an attack in the <Link className="text-frosted" href="/lab">Attack Lab</Link>, then check the verdict on <Link className="text-frosted" href="/verify">Verify</Link>.
+        </P>
 
         <H2 id="quick-start">Quick start</H2>
         <P>Zoro runs on your own machine: a daemon (gateway, auditor, registry and ledger writers) and this web app (Console and public pages).</P>
@@ -59,7 +65,7 @@ export default function DocsPage() {
           className="mt-4"
           language="shell"
           filename="terminal"
-          code={['git clone <your-repo-url> zoro && cd zoro', 'pnpm install', 'cp .env.example .env        # optional: add keys for the AI layer, ENSv2, Hedera and World ID', 'pnpm dev                    # daemon on :7420, web on :3000'].join('\n')}
+          code={[`git clone ${REPO_URL} zoro && cd zoro`, 'pnpm install', 'cp .env.example .env        # optional: add keys for the AI layer, ENSv2, Hedera and World ID', 'pnpm dev                    # daemon on :7420, web on :3000'].join('\n')}
         />
         <UL
           items={[
