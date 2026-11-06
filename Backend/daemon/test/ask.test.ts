@@ -65,3 +65,11 @@ describe('Ask Zoro scope', () => {
     expect(sent).toHaveLength(0);
   });
 });
+
+describe('plainText', () => {
+  it('drops Markdown emphasis and headings but keeps code-like names and citations', async () => {
+    const { plainText } = await import('../src/ask');
+    expect(plainText('## Steps\n1. **Re-audit** the tool')).toBe('Steps\n1. Re-audit the tool');
+    expect(plainText('calls __init__ and 2*3*4 [INC-12] [tool:lab/x]')).toBe('calls __init__ and 2*3*4 [INC-12] [tool:lab/x]');
+  });
+});
