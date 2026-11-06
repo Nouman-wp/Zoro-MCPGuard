@@ -110,7 +110,8 @@ export interface MirrorMessage {
 }
 
 export async function mirrorTopicMessages(topic: string, afterSeq: number, limit = 100): Promise<MirrorMessage[]> {
-  const url = `${mirrorBase()}/api/v1/topics/${topic}/messages?order=asc&limit=${limit}&sequencenumber=gt:${afterSeq}`;
+  // Sequence numbers start at 1 and the Mirror Node rejects `gt:0` with a 400, so ask for `gte:<next>` instead.
+  const url = `${mirrorBase()}/api/v1/topics/${topic}/messages?order=asc&limit=${limit}&sequencenumber=gte:${Math.max(1, afterSeq + 1)}`;
   const r = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!r.ok) throw new Error(`mirror node ${r.status}`);
   const body = (await r.json()) as { messages: MirrorMessage[] };
