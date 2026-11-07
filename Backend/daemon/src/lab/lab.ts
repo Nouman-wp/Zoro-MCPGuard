@@ -91,7 +91,8 @@ class Lab {
     } else if (e.type === 'incident' && d.action === 'created') {
       const i = get<{ seq: number; title: string; severity: string; lab: number }>('SELECT seq, title, severity, lab FROM incidents WHERE id = ?', String(d.id));
       if (i?.lab) this.event('zoro', `Incident INC-${i.seq} (${i.severity}): ${i.title}`, undefined, { incident: d.id });
-    } else if (e.type === 'ledger') {
+    } else if (e.type === 'ledger' && d.sequence !== undefined) {
+      // Only ledger writes; the registry watcher also emits read progress ({ topic, last }).
       this.event('zoro', `Hedera ledger entry: topic ${String(d.topic)} #${String(d.sequence)}`, undefined, d);
     } else if (e.type === 'approval' && d.status === 'pending') {
       const a = get<{ seq: number; summary: string; lab: number; human_seal: number }>('SELECT seq, summary, lab, human_seal FROM approvals WHERE id = ?', String(d.id));
