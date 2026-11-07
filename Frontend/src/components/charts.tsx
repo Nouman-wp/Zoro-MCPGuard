@@ -3,11 +3,10 @@
 import { useMemo, useState } from 'react';
 
 /**
- * Decision colors for chart marks, validated with the dataviz validator against the dark card surface #0d172b
- * (lightness band, chroma, contrast pass; adjacent CVD ΔE 6.1 → secondary encoding required: 2px gaps, legend,
- * per-bar tooltip and a table view are all present). Text never uses these colors.
+ * Decision colors for chart marks, from the design tokens: blue for normal (allowed) traffic, amber for asks, red for
+ * blocks. Colour is never the only encoding: 2px gaps, a legend, per-bar tooltip and a table view are all present.
  */
-export const DECISION_COLORS = { allow: '#147a4f', ask: '#c18512', block: '#e0484f' } as const;
+export const DECISION_COLORS = { allow: 'var(--accent)', ask: 'var(--warn)', block: 'var(--danger)' } as const;
 const ORDER = ['allow', 'ask', 'block'] as const;
 const LABEL = { allow: 'Allowed', ask: 'Asked', block: 'Blocked' } as const;
 
@@ -74,9 +73,9 @@ export function DecisionBars({ series, bucketMs, from, to }: { series: DecisionB
                   const isTop = si === segs.length - 1;
                   const r = isTop ? Math.min(4, barW / 2, h) : 0;
                   return isTop && r > 0 ? (
-                    <path key={k} d={`M${x},${top + h} V${top + r} Q${x},${top} ${x + r},${top} H${x + barW - r} Q${x + barW},${top} ${x + barW},${top + r} V${top + h} Z`} fill={DECISION_COLORS[k]} opacity={hover === null || hover === i ? 1 : 0.55} />
+                    <path key={k} d={`M${x},${top + h} V${top + r} Q${x},${top} ${x + r},${top} H${x + barW - r} Q${x + barW},${top} ${x + barW},${top + r} V${top + h} Z`} style={{ fill: DECISION_COLORS[k] }} opacity={hover === null || hover === i ? 1 : 0.55} />
                   ) : (
-                    <rect key={k} x={x} y={top} width={barW} height={Math.max(0, h)} fill={DECISION_COLORS[k]} opacity={hover === null || hover === i ? 1 : 0.55} />
+                    <rect key={k} x={x} y={top} width={barW} height={Math.max(0, h)} style={{ fill: DECISION_COLORS[k] }} opacity={hover === null || hover === i ? 1 : 0.55} />
                   );
                 })}
               </g>
@@ -89,7 +88,7 @@ export function DecisionBars({ series, bucketMs, from, to }: { series: DecisionB
           ))}
         </svg>
         {hover !== null && buckets[hover] && (
-          <div className="pointer-events-none absolute top-0 rounded-[8px] border border-obsidian bg-abyss px-3 py-2 text-[12px] shadow-[var(--shadow-md)]" style={{ left: `${Math.min(80, (hover / buckets.length) * 100)}%` }}>
+          <div className="pointer-events-none absolute top-0 rounded-[4px] border border-sapphire bg-sunken px-3 py-2 font-mono text-[11.5px] shadow-[var(--shadow-md)]" style={{ left: `${Math.min(80, (hover / buckets.length) * 100)}%` }}>
             <p className="text-quartz">{fmt(buckets[hover].t)}</p>
             {ORDER.map((k) => (
               <p key={k} className="text-mist">
