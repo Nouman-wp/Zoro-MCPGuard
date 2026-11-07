@@ -19,10 +19,10 @@ export function MotionProvider({ children }: { children: ReactNode }) {
 const VIEWPORT = { once: true, margin: '0px 0px -12% 0px' } as const;
 
 /** One element that rises into place the first time it scrolls into view. */
-export function Reveal({ children, delay = 0, y = 24, className, as = 'div', ...rest }: { children: ReactNode; delay?: number; y?: number; className?: string; as?: 'div' | 'section' | 'li' | 'p' | 'span' } & Omit<HTMLMotionProps<'div'>, 'children'>) {
+export function Reveal({ children, delay = 0, y = 16, className, as = 'div', ...rest }: { children: ReactNode; delay?: number; y?: number; className?: string; as?: 'div' | 'section' | 'li' | 'p' | 'span' } & Omit<HTMLMotionProps<'div'>, 'children'>) {
   const Comp = motion[as] as typeof motion.div;
   return (
-    <Comp className={className} initial={{ opacity: 0, y }} whileInView={{ opacity: 1, y: 0 }} viewport={VIEWPORT} transition={{ duration: 0.8, ease: EASE_EXPO, delay }} {...rest}>
+    <Comp className={className} initial={{ opacity: 0, y }} whileInView={{ opacity: 1, y: 0 }} viewport={VIEWPORT} transition={{ duration: 0.5, ease: EASE_OUT, delay }} {...rest}>
       {children}
     </Comp>
   );

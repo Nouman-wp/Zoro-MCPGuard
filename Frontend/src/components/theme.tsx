@@ -7,16 +7,15 @@ import { cx } from './ui';
 import { THEME_KEY as KEY } from '@/lib/theme-script';
 
 export type Theme = 'dark' | 'light';
-const THEME_COLOR: Record<Theme, string> = { dark: '#0a0b0c', light: '#f6f7f9' };
 
 const listeners = new Set<() => void>();
-const read = (): Theme => (typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+const read = (): Theme => (typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 
 function apply(next: Theme) {
   const root = document.documentElement;
   root.dataset.theme = next;
   root.style.colorScheme = next;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[next]);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim());
   try {
     localStorage.setItem(KEY, next);
   } catch {
@@ -36,7 +35,7 @@ export function useTheme(): Theme {
   return useSyncExternalStore(
     (cb) => (listeners.add(cb), () => listeners.delete(cb)),
     read,
-    () => 'dark',
+    () => 'light',
   );
 }
 

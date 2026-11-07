@@ -8,86 +8,113 @@ import { ArrowUpRight, Menu, X } from 'lucide-react';
 import { Eyebrow, LinkButton, cx } from './ui';
 import { LoadIn, MaskLines } from './motion';
 import { ThemeToggle } from './theme';
+import { ZMark } from './hardware';
 
-/** Zoro's mark: a seal outline with the Z cut through it. Drawn in one ink so it reads at 16px. */
+export const GITHUB_URL = 'https://github.com/Nouman-wp/Zoro-MCPGuard';
+
+/** Kept for existing imports: the angled Z mark. */
 export function Mark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden fill="none">
-      <path d="M16 2.8 5 7.1v8.1c0 6.6 4.5 12 11 14 6.5-2 11-7.4 11-14V7.1L16 2.8Z" stroke="currentColor" strokeWidth="2.6" strokeLinejoin="round" />
-      <path d="M11 11.2h10l-10 9.6h10" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <ZMark className={className} />;
 }
 
-export function Logo({ className }: { className?: string }) {
+export function Logo({ className, wordmark = true }: { className?: string; wordmark?: boolean }) {
   return (
-    <Link href="/" className={cx('group inline-flex items-center gap-2.5', className)} aria-label="Zoro home">
-      <Mark className="size-7 text-quartz transition-transform duration-300 ease-out group-hover:-rotate-6" />
-      <span className="flex flex-col leading-none">
-        <span className="font-display text-[20px] font-semibold tracking-[-0.03em]">Zoro</span>
-        <span className="mt-0.5 text-[8.5px] font-semibold tracking-[0.14em] text-ash">BY MCPGUARD</span>
+    <Link href="/" className={cx('group inline-flex items-center gap-2', className)} aria-label="Zoro home">
+      <span className="flex size-8 items-center justify-center rounded-[8px] border border-sapphire bg-lavender text-on-pastel transition-transform duration-300 group-hover:-rotate-6">
+        <ZMark className="size-[18px]" />
       </span>
+      {wordmark && <span className="text-[21px] font-bold tracking-[-0.02em] text-quartz">Zoro</span>}
     </Link>
   );
 }
 
-const NAV = [
-  { href: '/docs', label: 'Docs' },
+type NavItem = { href: string; label: string; spy?: string };
+const NAV: NavItem[] = [
+  { href: '/#how', label: 'How it works', spy: 'how' },
+  { href: '/#tracks', label: 'Tracks', spy: 'tracks' },
   { href: '/lab', label: 'Attack Lab' },
   { href: '/verify', label: 'Verify' },
   { href: '/registry', label: 'Registry' },
+  { href: '/docs', label: 'Docs' },
+];
+const MORE: NavItem[] = [
+  { href: '/tracks/ens', label: 'ENS track' },
+  { href: '/tracks/world-id', label: 'World ID track' },
+  { href: '/tracks/hedera', label: 'Hedera track' },
   { href: '/auditor', label: 'Auditor' },
 ];
 
+/** On the home page, the section in the middle of the screen lights its nav link. */
+function useScrollSpy(enabled: boolean) {
+  const [active, setActive] = useState<string>('top');
+  useEffect(() => {
+    if (!enabled) return;
+    const els = Array.from(document.querySelectorAll<HTMLElement>('main section[id]'));
+    if (!els.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setActive(e.target.id);
+      },
+      { rootMargin: '-45% 0px -50% 0px' },
+    );
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, [enabled]);
+  return enabled ? active : null;
+}
+
 export function SiteNav() {
-  const path = usePathname();
+  const path = usePathname() ?? '/';
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, 'change', (y) => setScrolled(y > 8));
   useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => void (document.body.style.overflow = '');
+  }, [open]);
+  const home = path === '/';
+  const spy = useScrollSpy(home);
+  const isActive = (n: NavItem) => (n.spy ? home && spy === n.spy : path.startsWith(n.href));
   return (
-    <header className={cx('sticky top-0 z-40 border-b transition-[background-color,border-color] duration-300', scrolled || open ? 'border-ink/[0.06] bg-void/90 backdrop-blur-md' : 'border-transparent bg-transparent')}>
-      <div className="mx-auto flex h-[60px] max-w-[1400px] items-center justify-between gap-6 px-4 sm:px-8 lg:px-12">
+    <header className={cx('sticky top-0 z-40 border-b transition-[background-color,border-color] duration-300', scrolled || open ? 'border-obsidian bg-elevated/95 backdrop-blur-md' : 'border-transparent bg-transparent')}>
+      <div className="mx-auto grid h-[72px] max-w-[1240px] grid-cols-[auto_1fr_auto] items-center gap-6 px-4 sm:px-6">
         <Logo />
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
-          {NAV.map((n) => {
-            const active = path?.startsWith(n.href);
-            return (
-              <Link key={n.href} href={n.href} className={cx('relative rounded-full px-3.5 py-1.5 text-[14.5px] transition-colors duration-[180ms]', active ? 'text-quartz' : 'text-ash hover:text-quartz')}>
-                {active && <motion.span layoutId="nav-active" className="absolute inset-0 -z-10 rounded-full bg-ink/[0.07]" transition={{ type: 'spring', stiffness: 480, damping: 40 }} />}
-                {n.label}
-              </Link>
-            );
-          })}
+        <nav className="hidden items-center justify-center gap-1 lg:flex" aria-label="Main">
+          {NAV.map((n) => (
+            <Link key={n.href} href={n.href} aria-current={isActive(n) ? (n.spy ? 'location' : 'page') : undefined} className={cx('rounded-full px-3.5 py-2 text-[15.5px] font-medium transition-colors duration-200', isActive(n) ? 'bg-lavender text-on-pastel' : 'text-quartz hover:bg-ink/[0.05]')}>
+              {n.label}
+            </Link>
+          ))}
         </nav>
-        <div className="hidden items-center gap-4 md:flex">
-          <ThemeToggle />
-          <LinkButton href="/console" size="sm">
+        <div className="flex items-center justify-end gap-3">
+          <span className="hidden lg:inline-flex">
+            <ThemeToggle />
+          </span>
+          <LinkButton href="/console" size="sm" className="hidden sm:inline-flex">
             Open Console
           </LinkButton>
-        </div>
-        <div className="flex items-center gap-1 md:hidden">
-          <ThemeToggle />
-          <button className="rounded-md p-2 text-mist" onClick={() => setOpen(!open)} aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open}>
+          <button className="flex size-10 items-center justify-center rounded-full border border-obsidian text-quartz lg:hidden" onClick={() => setOpen(!open)} aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open}>
             {open ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
         </div>
       </div>
-      <AnimatePresence initial={false}>
+      <AnimatePresence>
         {open && (
-          <motion.nav key="m" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden border-t border-ink/[0.06] md:hidden" aria-label="Mobile">
-            <div className="px-4 pb-5 pt-2">
-              {NAV.map((n, i) => (
-                <motion.div key={n.href} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i, duration: 0.25 }}>
-                  <Link href={n.href} className="block border-b border-ink/[0.05] py-3.5 text-[17px] text-mist">
+          <motion.nav key="m" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-x-0 bottom-0 top-[72px] z-40 overflow-y-auto bg-elevated lg:hidden" aria-label="Mobile">
+            <ul className="px-6 pb-6 pt-4">
+              {[...NAV, ...MORE].map((n, i) => (
+                <motion.li key={n.href} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 * i, duration: 0.22 }}>
+                  <Link href={n.href} onClick={() => setOpen(false)} className={cx('block border-b border-obsidian py-4 text-[22px] font-semibold', isActive(n) ? 'text-accent' : 'text-quartz')}>
                     {n.label}
                   </Link>
-                </motion.div>
+                </motion.li>
               ))}
-              <div className="mt-4 flex gap-2">
-                <LinkButton href="/console">Open Console</LinkButton>
-              </div>
+            </ul>
+            <div className="flex items-center justify-between gap-4 px-6 pb-10">
+              <LinkButton href="/console">Open Console</LinkButton>
+              <ThemeToggle />
             </div>
           </motion.nav>
         )}
@@ -96,34 +123,33 @@ export function SiteNav() {
   );
 }
 
+const FOOTER: { title: string; links: { href: string; label: string; external?: boolean }[] }[] = [
+  { title: 'Product', links: [{ href: '/console', label: 'Console' }, { href: '/lab', label: 'Attack Lab' }, { href: '/verify', label: 'Verify' }, { href: '/registry', label: 'Registry' }] },
+  { title: 'Tracks', links: [{ href: '/tracks/ens', label: 'ENS' }, { href: '/tracks/world-id', label: 'World ID' }, { href: '/tracks/hedera', label: 'Hedera' }] },
+  { title: 'Learn', links: [{ href: '/docs', label: 'Docs' }, { href: '/auditor', label: 'Auditor' }, { href: '/docs#privacy', label: 'Privacy' }, { href: GITHUB_URL, label: 'GitHub', external: true }] },
+];
+
 export function SiteFooter() {
-  const cols: { title: string; links: { href: string; label: string; external?: boolean }[] }[] = [
-    { title: 'Product', links: [{ href: '/console', label: 'Console' }, { href: '/lab', label: 'Attack Lab' }, { href: '/verify', label: 'Zoro Verify' }, { href: '/registry', label: 'Registry Explorer' }] },
-    { title: 'Learn', links: [{ href: '/docs', label: 'Documentation' }, { href: '/docs#quick-start', label: 'Quick start' }, { href: '/auditor', label: 'About the auditor' }, { href: '/docs#canonicalization', label: 'Canonicalization' }] },
-    { title: 'Built on', links: [{ href: 'https://modelcontextprotocol.io', label: 'Model Context Protocol', external: true }, { href: 'https://docs.ens.domains/ensv2/overview', label: 'ENSv2', external: true }, { href: 'https://docs.hedera.com', label: 'Hedera', external: true }, { href: 'https://docs.world.org', label: 'World ID', external: true }] },
-    { title: 'Trust', links: [{ href: '/docs#invariants', label: 'Product invariants' }, { href: '/docs#threat-model', label: 'Threat model' }, { href: '/docs#limits', label: 'Honest limits' }, { href: '/docs#privacy', label: 'What leaves your machine' }] },
-  ];
   return (
-    <footer className="relative overflow-hidden border-t border-ink/[0.06] bg-void">
-      <div className="mx-auto grid max-w-[1400px] gap-12 px-4 pb-10 pt-16 sm:px-8 md:grid-cols-[1fr_auto] lg:px-12">
+    <footer className="border-t border-sapphire bg-elevated">
+      <div className="mx-auto grid max-w-[1240px] gap-12 px-4 pb-10 pt-14 sm:px-6 md:grid-cols-[1.2fr_2fr]">
         <div>
           <Logo />
-          <p className="mt-5 max-w-xs text-[14px] font-light leading-relaxed text-ash">The guard at the door between AI agents and their tools.</p>
+          <p className="mt-4 max-w-xs text-[15px] leading-relaxed text-ash">The guard at the door between AI agents and the tools they use.</p>
         </div>
-        <div className="grid grid-cols-2 gap-x-14 gap-y-10 sm:grid-cols-4">
-          {cols.map((c) => (
+        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
+          {FOOTER.map((c) => (
             <div key={c.title}>
-              <p className="text-[14px] font-medium text-quartz">{c.title}</p>
-              <ul className="mt-4 space-y-3">
+              <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-slate">{c.title}</p>
+              <ul className="mt-4 space-y-2.5">
                 {c.links.map((l) => (
                   <li key={l.label}>
                     {l.external ? (
-                      <a href={l.href} target="_blank" rel="noreferrer" className="group inline-flex items-center gap-1 text-[14px] text-ash transition-colors hover:text-quartz">
-                        {l.label}
-                        <ArrowUpRight className="size-3 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+                      <a href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[15px] font-medium text-quartz hover:underline">
+                        {l.label} <ArrowUpRight className="size-3.5" aria-hidden />
                       </a>
                     ) : (
-                      <Link href={l.href} className="text-[14px] text-ash transition-colors hover:text-quartz">
+                      <Link href={l.href} className="text-[15px] font-medium text-quartz hover:underline">
                         {l.label}
                       </Link>
                     )}
@@ -134,13 +160,10 @@ export function SiteFooter() {
           ))}
         </div>
       </div>
-      <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-4 pb-6 text-[12.5px] text-ash sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
-        <span>© 2026 Zoro</span>
-        <span>Every number on this site is computed from real records or labelled as a simulation.</span>
+      <div className="mx-auto flex max-w-[1240px] flex-col gap-2 border-t border-obsidian px-4 py-6 text-[13.5px] text-slate sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <span>Built at ETHGlobal Mumbai 2026</span>
+        <span>Every number on this site is computed from real records or labelled as an illustration.</span>
       </div>
-      <p aria-hidden className="ink-fade pointer-events-none -mb-[0.22em] select-none text-center font-display text-[clamp(120px,24vw,360px)] font-semibold leading-[0.8] tracking-[-0.06em] opacity-[0.07]">
-        Zoro
-      </p>
     </footer>
   );
 }
@@ -148,7 +171,7 @@ export function SiteFooter() {
 export function SiteShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-abyss">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-quartz focus:px-3 focus:py-2 focus:text-[14px] focus:text-black">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:rounded-[8px] focus:bg-ink-solid focus:px-3 focus:py-2 focus:text-[14px] focus:text-on-ink">
         Skip to content
       </a>
       <SiteNav />
@@ -160,19 +183,17 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The opening of every public subpage: a two-tone headline that rises from its baseline, lit from behind. */
+/** The opening of every public subpage: grey eyebrow, then a two-tone headline that rises from its baseline. */
 export function PageIntro({ eyebrow, a, b, className }: { eyebrow?: React.ReactNode; a: React.ReactNode; b?: React.ReactNode; className?: string }) {
   return (
     <div className={cx('relative', className)}>
-      <div className="glow glow-blue -top-56 right-[-12%] h-[440px] w-[680px] opacity-30" aria-hidden />
-      <div className="glow glow-violet -top-40 left-[-18%] h-[320px] w-[420px] opacity-[0.18]" aria-hidden />
       {eyebrow && (
         <LoadIn delay={0} y={6}>
           <Eyebrow className="relative">{eyebrow}</Eyebrow>
         </LoadIn>
       )}
-      <h1 className="font-display relative mt-3 text-[40px] font-medium leading-[1.04] md:text-[58px]">
-        <MaskLines lines={b ? [a, b] : [a]} lineClassName={(i) => (i === 1 ? 'ink-dim' : undefined)} />
+      <h1 className="font-display relative mt-3 text-[40px] leading-[1.05] md:text-[60px]">
+        <MaskLines lines={b ? [a, b] : [a]} lineClassName={(i) => (i === 1 ? 'tone-accent' : undefined)} />
       </h1>
     </div>
   );

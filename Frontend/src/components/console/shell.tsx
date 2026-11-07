@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  Activity, Bell, Bot, Building, ChevronDown, ClipboardCheck, Command, FileText, GitPullRequestArrow, Globe, Inbox, LayoutDashboard, LogOut, Menu, Package, Scale, ScrollText, Search, Server, Settings, ShieldHalf, Siren, Sparkles, Stamp, Waypoints, X,
+  Activity, Bell, Bot, Building, ChevronDown, ClipboardCheck, Command, FileText, FlaskConical, GitPullRequestArrow, Globe, Inbox, LayoutDashboard, LogOut, Menu, Package, Scale, ScrollText, Search, Server, Settings, ShieldHalf, Siren, Sparkles, Stamp, Waypoints, X,
 } from 'lucide-react';
 import { Logo } from '../site';
 import { Badge, Button, Notice, SeverityBadge, cx, inputCls } from '../ui';
@@ -34,7 +34,7 @@ const NAV: { group: string; items: { href: string; label: string; icon: typeof A
   { group: 'Monitor', items: [{ href: '/console/traffic', label: 'Live traffic', icon: Activity }, { href: '/console/incidents', label: 'Incidents', icon: Siren, badge: 'incidents' }, { href: '/console/approvals', label: 'Approvals', icon: ClipboardCheck, badge: 'approvals' }, { href: '/console/quarantine', label: 'Quarantine', icon: ShieldHalf }] },
   { group: 'Inventory', items: [{ href: '/console/servers', label: 'Servers', icon: Server }, { href: '/console/agents', label: 'Agents', icon: Bot }, { href: '/console/packages', label: 'Packages & skills', icon: Package }, { href: '/console/flows', label: 'Data flows', icon: Waypoints }] },
   { group: 'Govern', items: [{ href: '/console/policies', label: 'Policies', icon: Scale }, { href: '/console/publisher', label: 'Publisher', icon: Stamp }, { href: '/console/disputes', label: 'Disputes', icon: GitPullRequestArrow }, { href: '/console/organization', label: 'Organization', icon: Building }] },
-  { group: 'Evidence', items: [{ href: '/console/log', label: 'Audit log', icon: ScrollText }, { href: '/console/reports', label: 'Reports', icon: FileText }] },
+  { group: 'Evidence', items: [{ href: '/console/log', label: 'Audit log', icon: ScrollText }, { href: '/console/reports', label: 'Reports', icon: FileText }, { href: '/lab', label: 'Attack Lab', icon: FlaskConical }] },
   { group: 'System', items: [{ href: '/console/onboarding', label: 'Onboarding', icon: Inbox }, { href: '/console/settings', label: 'Settings', icon: Settings }] },
 ];
 
@@ -53,7 +53,7 @@ function StatusIndicator({ status, down }: { status: ConsoleStatus | null; down:
   if (!meta) return <span className="h-8 w-40 animate-pulse rounded-full bg-ink/[0.05]" />;
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className="inline-flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 text-[13px] text-mist transition-colors hover:bg-ink/[0.05] hover:text-quartz" aria-expanded={open} aria-haspopup="dialog">
+      <button onClick={() => setOpen(!open)} className="inline-flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-obsidian bg-panel px-3 text-[13px] font-medium text-quartz transition-colors hover:border-sapphire" aria-expanded={open} aria-haspopup="dialog">
         <span className={cx('size-2 rounded-full', meta.dot, status?.state !== 'protected' && 'pulse-dot')} aria-hidden />
         {meta.label}
         <ChevronDown className={cx('size-3.5 text-ash transition-transform duration-200', open && 'rotate-180')} aria-hidden />
@@ -203,7 +203,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   return (
     <AnimatePresence>
       {open && (
-    <motion.div key="palette" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.14 } }} transition={{ duration: 0.18 }} className="fixed inset-0 z-[60] flex items-start justify-center bg-black/65 px-4 pt-[12vh] backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <motion.div key="palette" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.14 } }} transition={{ duration: 0.18 }} className="fixed inset-0 z-[60] flex items-start justify-center bg-[var(--scrim)] px-4 pt-[12vh] backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <motion.div initial={{ opacity: 0, y: -10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.99, transition: { duration: 0.14 } }} transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }} className="w-full max-w-xl overflow-hidden rounded-[16px] border border-ink/[0.08] bg-sunken shadow-[var(--shadow-xl)]" role="dialog" aria-label="Command palette">
         <div className="flex items-center gap-2 border-b border-inkline px-4">
           <Command className="size-4 text-slate" aria-hidden />
@@ -308,18 +308,18 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
     <nav className="flex flex-col gap-5 px-3 py-4" aria-label="Console">
       {NAV.map((g) => (
         <div key={g.group || 'root'}>
-          {g.group && <p className="mb-1.5 px-2 text-[12px] text-faint">{g.group}</p>}
+          {g.group && <p className="mb-2 px-2 text-[12px] font-medium uppercase tracking-[0.06em] text-slate">{g.group}</p>}
           <ul className="space-y-0.5">
             {g.items.map((i) => {
               const active = i.href === '/console' ? path === '/console' : path?.startsWith(i.href);
               const badge = i.badge ? counts[i.badge] : 0;
               return (
                 <li key={i.href}>
-                  <Link href={i.href} className={cx('relative flex items-center gap-2.5 rounded-[8px] px-2 py-1.5 text-[14px] transition-colors duration-[180ms]', active ? 'text-quartz' : 'text-ash hover:bg-ink/[0.025] hover:text-quartz')} aria-current={active ? 'page' : undefined}>
-                    {active && <motion.span layoutId="console-nav-active" className="absolute inset-0 -z-10 rounded-[8px] border border-ink/[0.06] bg-ink/[0.06]" transition={{ type: 'spring', stiffness: 500, damping: 42 }} />}
+                  <Link href={i.href} className={cx('relative flex items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-[14.5px] font-medium transition-colors duration-[180ms]', active ? 'text-on-pastel' : 'text-ash hover:bg-ink/[0.04] hover:text-quartz')} aria-current={active ? 'page' : undefined}>
+                    {active && <motion.span layoutId="console-nav-active" className="absolute inset-0 -z-10 rounded-[8px] border border-sapphire bg-lavender" transition={{ type: 'spring', stiffness: 500, damping: 42 }} />}
                     <i.icon className="size-4" strokeWidth={1.75} aria-hidden />
                     {i.label}
-                    {badge > 0 && <span className={cx('ml-auto rounded-full px-1.5 text-[11px] font-medium', i.badge === 'incidents' ? 'bg-danger-bg text-danger' : 'bg-warn-bg text-warn')}>{badge}</span>}
+                    {badge > 0 && <span className={cx('ml-auto rounded-full px-1.5 text-[11.5px] font-semibold', i.badge === 'incidents' ? 'bg-danger-bg text-danger' : 'bg-warn-bg text-warn')}>{badge}</span>}
                   </Link>
                 </li>
               );
@@ -327,11 +327,11 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
           </ul>
         </div>
       ))}
-      <div className="mt-2 space-y-0.5 border-t border-ink/[0.06] pt-4">
-        <Link href="/" className="flex items-center gap-2.5 rounded-[8px] px-2 py-1.5 text-[14px] text-ash transition-colors hover:bg-ink/[0.025] hover:text-quartz">
+      <div className="mt-2 space-y-0.5 border-t border-obsidian pt-4">
+        <Link href="/" className="flex items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-[14.5px] font-medium text-ash transition-colors hover:bg-ink/[0.04] hover:text-quartz">
           <Globe className="size-4" strokeWidth={1.75} aria-hidden /> Public site
         </Link>
-        <button onClick={() => void fetch('/auth/logout', { method: 'POST' }).then(() => (window.location.href = '/console/login'))} className="flex w-full items-center gap-2.5 rounded-[8px] px-2 py-1.5 text-[14px] text-ash transition-colors hover:bg-ink/[0.025] hover:text-quartz">
+        <button onClick={() => void fetch('/auth/logout', { method: 'POST' }).then(() => (window.location.href = '/console/login'))} className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-[14.5px] font-medium text-ash transition-colors hover:bg-ink/[0.04] hover:text-quartz">
           <LogOut className="size-4" strokeWidth={1.75} aria-hidden /> Sign out
         </button>
       </div>
@@ -340,16 +340,16 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-abyss">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r border-ink/[0.06] bg-abyss lg:block">
-        <div className="flex h-14 items-center px-5">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r border-obsidian bg-elevated lg:block">
+        <div className="flex h-14 items-center border-b border-obsidian px-5">
           <Logo />
         </div>
         {nav}
       </aside>
       <AnimatePresence>
         {mobile && (
-          <motion.div key="drawer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-50 overscroll-contain bg-black/60 lg:hidden" onClick={() => setMobile(false)}>
-            <motion.aside initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280, transition: { duration: 0.2 } }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="h-full w-64 overflow-y-auto border-r border-ink/[0.06] bg-abyss" onClick={(e) => e.stopPropagation()}>
+          <motion.div key="drawer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-50 overscroll-contain bg-[var(--scrim)] lg:hidden" onClick={() => setMobile(false)}>
+            <motion.aside initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280, transition: { duration: 0.2 } }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }} className="h-full w-64 overflow-y-auto border-r border-obsidian bg-elevated" onClick={(e) => e.stopPropagation()}>
               <div className="flex h-14 items-center px-5">
                 <Logo />
               </div>
@@ -359,7 +359,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-ink/[0.06] bg-abyss/90 px-4 backdrop-blur-md">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-obsidian bg-elevated/95 px-4 backdrop-blur-md">
           <button className="rounded-md p-1.5 text-mist lg:hidden" onClick={() => setMobile(true)} aria-label="Open navigation">
             <Menu className="size-5" />
           </button>
@@ -389,7 +389,9 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
             </Notice>
           </div>
         )}
-        <main className="min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>
+        <main className="relative isolate min-w-0 flex-1 px-4 py-6 md:px-8">
+          {children}
+        </main>
       </div>
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
       <AskZoroPanel open={ask} onClose={() => setAsk(false)} enabled={s?.askEnabled ?? false} />

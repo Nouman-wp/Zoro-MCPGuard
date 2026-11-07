@@ -10,19 +10,22 @@ import { CountUp } from './motion';
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 export { cx };
 
-// ---------- Buttons (agentql.com: light filled primary, dark outlined secondary, one blue accent pill) ----------
+// ---------- Buttons: black rounded primary, yellow pill call to action, outlined secondary ----------
 
-type BtnVariant = 'primary' | 'ghost' | 'accent' | 'subtle' | 'danger' | 'link';
+type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'accent' | 'cta' | 'subtle' | 'danger' | 'danger-solid' | 'link';
 const BTN: Record<BtnVariant, string> = {
-  primary: 'btn-primary',
-  ghost: 'btn-ghost',
-  accent: 'text-quartz rounded-full! bg-[linear-gradient(90deg,#2f5fd0,#5b5cf0)] border border-white/15 shadow-[0_6px_24px_-6px_rgba(70,100,255,0.6)] hover:brightness-110',
-  subtle: 'bg-deep-sea text-mist border border-obsidian hover:border-sapphire hover:text-quartz',
-  danger: 'bg-danger-bg text-danger border border-danger/40 hover:border-danger',
-  link: 'bg-transparent text-frosted hover:text-quartz border border-transparent px-0!',
+  primary: 'btn-chamfer btn-primary',
+  accent: 'btn-chamfer btn-primary',
+  cta: 'btn-chamfer btn-cta',
+  secondary: 'btn-chamfer btn-secondary',
+  ghost: 'btn-chamfer btn-ghost',
+  subtle: 'btn-chamfer btn-subtle',
+  danger: 'btn-chamfer btn-danger-soft',
+  'danger-solid': 'btn-chamfer btn-danger',
+  link: 'bg-transparent font-semibold text-accent underline-offset-4 hover:underline px-0!',
 };
-const BTN_BASE = 'inline-flex items-center justify-center gap-2 rounded-[8px] font-medium whitespace-nowrap select-none transition-[background-color,border-color,color,filter,transform] duration-[180ms] ease-out active:scale-[0.97] active:duration-[120ms] [touch-action:manipulation]';
-const BTN_SIZE = { sm: 'h-8 px-3.5 text-[13px]', md: 'h-10 px-4.5 text-[14px]', lg: 'h-12 px-6 text-[15.5px]' } as const;
+const BTN_BASE = 'inline-flex items-center justify-center gap-2 whitespace-nowrap select-none transition-[background-color,color,filter,transform,border-color] duration-[180ms] ease-out active:scale-[0.97] active:duration-[120ms] [touch-action:manipulation]';
+const BTN_SIZE = { sm: 'h-8 px-3.5 text-[13px]', md: 'h-10 px-5 text-[14.5px]', lg: 'h-12 px-6 text-[16px]' } as const;
 
 export function Button({ variant = 'primary', size = 'md', loading, icon, children, className, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; size?: 'sm' | 'md' | 'lg'; loading?: boolean; icon?: ReactNode }) {
   return (
@@ -50,7 +53,7 @@ export function LinkButton({ href, variant = 'primary', size = 'md', children, c
 
 export function Card({ children, className, highlight, elevated, as: As = 'div', ...rest }: { children: ReactNode; className?: string; highlight?: boolean; elevated?: boolean; as?: 'div' | 'section' | 'article' } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <As {...rest} className={cx('rounded-[14px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]', highlight ? 'bg-cobalt border-cobalt-edge' : 'bg-deep-sea border-ink/[0.07]', elevated && 'shadow-[var(--shadow-xl)]', className)}>
+    <As {...rest} className={cx('rounded-[12px] border', highlight ? 'bg-cobalt border-cobalt-edge' : 'bg-panel border-obsidian', elevated && 'shadow-[var(--shadow-xl)]', className)}>
       {children}
     </As>
   );
@@ -60,7 +63,7 @@ export function CardHeader({ title, subtitle, action, className }: { title: Reac
   return (
     <div className={cx('flex items-start justify-between gap-4 px-5 pb-3 pt-4', className)}>
       <div className="min-w-0">
-        <h3 className="text-[14.5px] font-medium text-quartz">{title}</h3>
+        <h3 className="text-[15.5px] font-semibold text-quartz">{title}</h3>
         {subtitle && <p className="mt-0.5 text-[12.5px] text-ash">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
@@ -69,7 +72,7 @@ export function CardHeader({ title, subtitle, action, className }: { title: Reac
 }
 
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cx('text-[12.5px] font-medium uppercase tracking-[0.06em] text-ash', className)}>{children}</p>;
+  return <p className={cx('text-[13px] font-medium uppercase tracking-[0.06em] text-slate md:text-[14px]', className)}>{children}</p>;
 }
 
 export function PageHeader({ title, description, actions, eyebrow }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
@@ -98,16 +101,27 @@ const TONE: Record<Tone, string> = {
   warn: 'bg-warn-bg text-warn',
   danger: 'bg-danger-bg text-danger',
   info: 'bg-info-bg text-frosted',
-  neutral: 'bg-ink/[0.06] text-mist',
+  neutral: 'border border-sapphire bg-panel text-quartz',
   violet: 'bg-violet-bg text-violet-ink',
 };
 
 export function Badge({ tone = 'neutral', children, className, dot }: { tone?: Tone; children: ReactNode; className?: string; dot?: boolean }) {
   return (
-    <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-[3px] text-[12px] font-medium leading-none', TONE[tone], className)}>
+    <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-[5px] text-[12px] font-semibold leading-none', TONE[tone], className)}>
       {dot && <span className="size-1.5 rounded-full bg-current" aria-hidden />}
       {children}
     </span>
+  );
+}
+
+/** StatusPill: the four security states, mono uppercase. Never uses the blue accent. */
+export type SecurityState = 'sealed' | 'ask' | 'blocked' | 'pending';
+const STATE_PILL: Record<SecurityState, { tone: Tone; label: string }> = { sealed: { tone: 'ok', label: 'Sealed' }, ask: { tone: 'warn', label: 'Ask' }, blocked: { tone: 'danger', label: 'Blocked' }, pending: { tone: 'neutral', label: 'Pending' } };
+export function StatusPill({ state, children, className }: { state: SecurityState; children?: ReactNode; className?: string }) {
+  return (
+    <Badge tone={STATE_PILL[state].tone} dot className={className}>
+      {children ?? STATE_PILL[state].label}
+    </Badge>
   );
 }
 
@@ -243,7 +257,7 @@ export function Notice({ tone = 'info', title, children, className, action }: { 
 export function Stat({ label, value, hint, href, tone }: { label: string; value: ReactNode; hint?: ReactNode; href?: string; tone?: Tone }) {
   const body = (
     <div className={cx('group h-full bg-deep-sea p-5 transition-colors duration-200', href && 'hover:bg-raised')}>
-      <p className="flex items-center justify-between text-[13px] text-ash">
+      <p className="flex items-center justify-between text-[13.5px] font-medium text-ash">
         {label}
         {href && <span className="translate-x-[-4px] text-[12px] opacity-0 transition-[opacity,transform] duration-200 group-hover:translate-x-0 group-hover:opacity-100" aria-hidden>→</span>}
       </p>
@@ -315,26 +329,26 @@ export function CodeBlock({ code, filename, language = 'json', maxHeight = 420, 
   const lines = code.split('\n');
   const numbered = lineNumbers ?? (language !== 'shell' && lines.length > 1 && lines.length < 400);
   return (
-    <div className={cx('overflow-hidden rounded-[12px] border border-code-edge bg-code shadow-[inset_0_1px_0_rgba(140,170,255,0.07)]', className)}>
+    <div className={cx('overflow-hidden rounded-[12px] border border-code-edge bg-code', className)}>
       {(filename || code) && (
         <div className="flex items-center justify-between border-b border-code-edge/80 px-4 py-2">
-          <span className="flex min-w-0 items-center gap-2 text-[12.5px] text-[#9aa8c7]">
+          <span className="flex min-w-0 items-center gap-2 font-mono text-[12px] text-code-gutter">
             <span className="flex gap-1" aria-hidden>
-              <span className="size-2 rounded-full bg-white/15" />
-              <span className="size-2 rounded-full bg-white/10" />
-              <span className="size-2 rounded-full bg-white/[0.07]" />
+              <span className="size-2 rounded-full bg-code-gutter" />
+              <span className="size-2 rounded-full bg-code-gutter/70" />
+              <span className="size-2 rounded-full bg-code-gutter/40" />
             </span>
             <span className="truncate">{filename ?? language}</span>
           </span>
           <CopyButton value={code} />
         </div>
       )}
-      <pre className="overflow-auto py-3.5 font-mono text-[12.8px] leading-[1.6] text-[#c8d3ea]" style={{ maxHeight }}>
+      <pre className="overflow-auto py-3.5 font-mono text-[12.8px] leading-[1.6] text-code-text" style={{ maxHeight }}>
         {numbered ? (
           <code className="grid grid-cols-[auto_1fr]">
             {lines.map((l, i) => (
               <span key={i} className="contents">
-                <span className="select-none pl-4 pr-4 text-right text-[#3d4a6b]" aria-hidden>
+                <span className="select-none pl-4 pr-4 text-right text-code-gutter" aria-hidden>
                   {i + 1}
                 </span>
                 <span className="pr-4">{language === 'json' ? <JsonHighlight code={l} /> : l || ' '}</span>
@@ -381,7 +395,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, className }: { t
         >
           {t.label}
           {t.count !== undefined && <span className="tabular rounded-full bg-ink/[0.06] px-1.5 text-[11px] text-mist">{t.count}</span>}
-          {value === t.id && <motion.span layoutId={`tab-${group}`} className="absolute inset-x-2 -bottom-px h-[2px] rounded-full bg-quartz" transition={{ type: 'spring', stiffness: 520, damping: 42 }} />}
+          {value === t.id && <motion.span layoutId={`tab-${group}`} className="absolute inset-x-2 -bottom-px h-[2px] bg-accent" transition={{ type: 'spring', stiffness: 520, damping: 42 }} />}
         </button>
       ))}
     </div>
@@ -407,7 +421,7 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.16 } }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-black/65 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
+          className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-[var(--scrim)] p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
           onMouseDown={(e) => e.target === e.currentTarget && onClose()}
         >
           <motion.div
@@ -420,10 +434,10 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98, transition: { duration: 0.16 } }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className={cx('max-h-[92vh] w-full overflow-hidden rounded-t-[16px] border border-ink/[0.08] bg-sunken shadow-[var(--shadow-xl)] outline-none sm:rounded-[16px]', wide ? 'sm:max-w-3xl' : 'sm:max-w-lg')}
+            className={cx('max-h-[92vh] w-full overflow-hidden rounded-t-[12px] border border-sapphire bg-sunken shadow-[var(--shadow-xl)] outline-none sm:rounded-[12px]', wide ? 'sm:max-w-3xl' : 'sm:max-w-lg')}
           >
             <div className="flex items-center justify-between border-b border-ink/[0.06] px-5 py-4">
-              <h2 id={id} className="text-[16px] font-medium">
+              <h2 id={id} className="text-[17px] font-semibold">
                 {title}
               </h2>
               <button onClick={onClose} className="rounded-md p-1 text-ash transition-colors hover:bg-ink/5 hover:text-quartz" aria-label="Close">
@@ -441,7 +455,7 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
 
 // ---------- Form controls ----------
 
-export const inputCls = 'h-10 w-full rounded-[8px] border border-control-edge bg-field px-3 text-[14px] text-quartz placeholder:text-slate transition-[border-color,box-shadow] duration-[180ms] hover:border-control-hover focus:border-frosted/60 focus:outline-none focus:ring-[3px] focus:ring-[#4f7fe8]/20';
+export const inputCls = 'h-10 w-full rounded-[8px] border border-control-edge bg-field px-3 text-[14px] text-quartz placeholder:text-slate transition-[border-color,box-shadow] duration-[180ms] hover:border-control-hover focus:border-accent/70 focus:outline-none focus:ring-[3px] focus:ring-accent/20';
 
 export function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
   return (
@@ -468,7 +482,7 @@ export function Select({ value, onChange, options, className, ariaLabel }: { val
 export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className="inline-flex items-center gap-2 text-[14px] text-mist">
-      <span className={cx('relative h-5 w-9 rounded-full border transition-colors duration-[180ms]', checked ? 'border-[#5b7fe0] bg-[#3a63d0]' : 'border-control-edge bg-field')}>
+      <span className={cx('relative h-5 w-9 rounded-full border transition-colors duration-[180ms]', checked ? 'border-accent bg-accent-deep' : 'border-control-edge bg-field')}>
         <span className={cx('absolute left-0.5 top-0.5 size-3.5 rounded-full bg-quartz shadow-sm transition-transform duration-[240ms] ease-out', checked ? 'translate-x-4' : 'translate-x-0')} />
       </span>
       {label}
@@ -483,7 +497,7 @@ export function Table({ head, children, className }: { head: ReactNode[]; childr
     <div className={cx('overflow-x-auto', className)}>
       <table className="tabular w-full min-w-[640px] text-left text-[14px]">
         <thead>
-          <tr className="border-b border-ink/[0.06] text-[12.5px] text-ash">
+          <tr className="border-b border-obsidian text-[13px] font-medium text-slate">
             {head.map((h, i) => (
               <th key={i} className="px-4 py-3 font-normal">
                 {h}
