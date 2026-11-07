@@ -292,6 +292,65 @@ function WalletSwapArt() {
   );
 }
 
+function MorseHeistArt() {
+  return (
+    <Illo label="An email hides a transfer order in Morse code, which Zoro decodes and blocks">
+      <Floor />
+      <Envelope x={18} y={26} w={74} h={48} />
+      <g className="a-fade" style={d(0.3)}>
+        <text x="26" y="66" style={txt(9, 800)}>·– –· ·––</text>
+      </g>
+      <path className="a-draw" pathLength={1} d="M96 50 H126" style={{ ...ink, fill: 'none', ...d(0.6) }} />
+      <g className="a-slide" style={d(0.8)}>
+        <rect x="128" y="38" width="62" height="24" rx="5" style={fill('var(--peach-soft)')} />
+        <text x="133" y="53.5" style={txt(8)}>send $9k</text>
+      </g>
+      <Cross x={160} y={80} s={8} delay={1.2} />
+    </Illo>
+  );
+}
+
+function NineSecondWipeArt() {
+  return (
+    <Illo label="An agent tries to delete the production database, and Zoro stops it">
+      <Floor />
+      <g>
+        <ellipse cx="58" cy="34" rx="26" ry="8" style={fill('var(--lavender)')} />
+        <path d="M32 34 V70 A26 8 0 0 0 84 70 V34" style={fill('var(--lavender)')} />
+        <path d="M32 52 A26 8 0 0 0 84 52" style={{ ...ink, fill: 'none' }} />
+        <text x="44" y="64" style={txt(8, 800)}>prod</text>
+      </g>
+      <g className="a-slide" style={d(0.3)}>
+        <rect x="104" y="40" width="84" height="20" rx="5" style={fill('var(--pink-soft)')} />
+        <text x="109" y="53.5" style={txt(8)}>rm volume…</text>
+      </g>
+      <g className="a-fade" style={d(0.7)}>
+        <text x="122" y="82" style={txt(9, 800)}>0:09</text>
+      </g>
+      <Cross x={96} y={78} s={8} delay={1.1} />
+    </Illo>
+  );
+}
+
+function WalletDrainArt() {
+  return (
+    <Illo label="A signing tool asks for unlimited spending of the treasury, which Zoro holds for a person">
+      <Floor />
+      <rect x="22" y="34" width="64" height="40" rx="7" style={fill('var(--mint)')} />
+      <text x="30" y="58" style={txt(9, 800)}>USDT</text>
+      <path className="a-draw" pathLength={1} d="M90 54 H122" style={{ ...ink, stroke: 'var(--danger)', fill: 'none', ...d(0.4) }} />
+      <g className="a-slide" style={d(0.6)}>
+        <rect x="124" y="42" width="66" height="24" rx="5" style={fill('var(--pink-soft)')} />
+        <text x="131" y="57.5" style={txt(8)}>approve ∞</text>
+      </g>
+      <g className="a-pop" style={d(1.1)}>
+        <rect x="80" y="78" width="40" height="16" rx="8" style={fill('var(--warn-bg)')} />
+        <text x="88" y="89.5" style={txt(8, 800)}>ASK</text>
+      </g>
+    </Illo>
+  );
+}
+
 export const TRACK_ART = { ens: <EnsArt />, 'world-id': <WorldArt />, hedera: <HederaArt /> } as const;
 
 export const SCENARIO_ART: Record<string, ReactNode> = {
@@ -305,4 +364,7 @@ export const SCENARIO_ART: Record<string, ReactNode> = {
   'honest-update': <HonestUpdateArt />,
   revocation: <RevocationArt />,
   'wallet-swap': <WalletSwapArt />,
+  'morse-heist': <MorseHeistArt />,
+  'nine-second-wipe': <NineSecondWipeArt />,
+  'wallet-drain': <WalletDrainArt />,
 };

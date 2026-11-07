@@ -32,6 +32,9 @@ export const SCENARIO_HELP: Record<string, TipContent> = {
   typosquat: { title: 'Typosquat server', body: 'A server whose name copies a popular one with a tiny change, hoping you won’t notice.', example: 'Like “paypa1.com” instead of “paypal.com”.' },
   'honest-update': { title: 'Honest update (no attack)', body: 'A normal, harmless fix. This shows Zoro doesn’t get in the way: the new version is checked and released within moments.' },
   revocation: { title: 'Revocation after the fact', body: 'A tool that was approved turns out to be bad later. Zoro blocks it immediately and lists every call made while it was trusted.' },
+  'morse-heist': { title: 'Morse heist', body: 'An email hides a money-transfer order in Morse code (dots and dashes). A person skimming it, or a simple keyword filter, sees nothing suspicious.', example: 'Zoro’s Secret-Code Decoder reads the hidden Morse, keeps it away from the agent, and the transfer is stopped.' },
+  'nine-second-wipe': { title: 'Nine-second wipe', body: 'Asked to “clean up unused volumes”, the agent tries to delete the live production database. Based on a real incident where a startup lost its data in seconds.', example: 'Zoro’s brake stops actions that can’t be undone until a person approves.' },
+  'wallet-drain': { title: 'Wallet drain', body: 'A new signing tool tricks the agent into giving an attacker permission to spend all of the treasury’s USDT, forever.', example: 'Like signing a blank cheque. Zoro’s New-Power Alarm spots the new tool, the transaction is explained in plain words, and a real person must approve with World ID.' },
   'wallet-swap': { title: 'Wallet recipient swap', body: 'A wallet tool update quietly sends money to the attacker’s address. Zoro blocks the new version, and a second rule only allows known recipients.' },
 };
 
