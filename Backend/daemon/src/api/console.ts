@@ -28,7 +28,7 @@ import { measureDeterministic, measureWithAi } from '../corpus';
 import { all, get, getSetting, json, run, setSetting } from '../db';
 import { listDisputes, openDispute } from '../disputes';
 import { gateway } from '../gateway/gateway';
-import { cancelHumanSeal, completeHumanSeal, getHumanSeal, startHumanSeal, usesTestIdentities } from '../humanseal';
+import { abandonHumanSeal, completeHumanSeal, getHumanSeal, startHumanSeal, usesTestIdentities } from '../humanseal';
 import { incidentRef, listIncidentEvents, setIncidentStatus, type IncidentRow } from '../incidents';
 import { publicMcpUrl, restoreClients, routeClient, scanClients, scanPermitted, settingsSnippet } from '../onboarding';
 import { getPolicy, policyHistory, validatePolicy } from '../policy';
@@ -426,9 +426,9 @@ consoleApi.post('/human-seal/:id/complete', async (c) => {
   }
 });
 
-consoleApi.post('/human-seal/:id/cancel', (c) => {
-  cancelHumanSeal(c.req.param('id'));
-  return c.json({ ok: true });
+consoleApi.post('/human-seal/:id/cancel', async (c) => {
+  const b = await c.req.json<{ code?: string }>().catch(() => ({} as { code?: string }));
+  return c.json({ ok: true, status: abandonHumanSeal(c.req.param('id'), b.code ?? 'cancelled') });
 });
 
 consoleApi.get('/human-seal/:id', (c) => {

@@ -6,7 +6,7 @@ import { bus, type BusEvent } from '../bus';
 import { VERSION, config, ensAppUrl, etherscanBase, hashscan, hcsMessageUrl, isEnsConfigured, isHederaConfigured, mirrorBase } from '../config';
 import { latestCorpusRuns } from '../corpus';
 import { all, get, json } from '../db';
-import { completeHumanSeal, startHumanSeal } from '../humanseal';
+import { abandonHumanSeal, completeHumanSeal, getHumanSeal, startHumanSeal } from '../humanseal';
 import { auditorAccount, auditorKeySource } from '../keys';
 import { lab } from '../lab/lab';
 import { badgeSvg } from '../publisher';
@@ -240,10 +240,18 @@ publicApi.post('/lab/approvals/:id/human-seal', async (c) => {
   return c.json(startHumanSeal(a.digest, a.id, a.expires_at));
 });
 
+/** A lab Human Seal, only together with the lab approval it was started for. */
+const labSeal = (sid: string, approvalId: string) => {
+  const a = labApproval(approvalId);
+  const s = a ? getHumanSeal(sid) : null;
+  return a && s?.approval_id === a.id ? { a, s } : null;
+};
+
 publicApi.post('/lab/human-seal/:sid/complete', async (c) => {
   const body = await c.req.json<{ approvalId: string; result: Record<string, unknown> }>();
-  const a = labApproval(body.approvalId);
-  if (!a) return c.json({ error: 'not a lab approval' }, 404);
+  const found = labSeal(c.req.param('sid'), String(body.approvalId ?? ''));
+  if (!found) return c.json({ error: 'not a lab approval' }, 404);
+  const { a } = found;
   const r = await completeHumanSeal(c.req.param('sid'), body.result);
   if (r.status !== 'verified') return c.json(r, 400);
   try {
@@ -251,6 +259,12 @@ publicApi.post('/lab/human-seal/:sid/complete', async (c) => {
   } catch (e) {
     return c.json({ ...r, error: (e as Error).message }, 400);
   }
+});
+
+publicApi.post('/lab/human-seal/:sid/cancel', async (c) => {
+  const body = await c.req.json<{ approvalId?: string; code?: string }>().catch(() => ({} as { approvalId?: string; code?: string }));
+  if (!labSeal(c.req.param('sid'), String(body.approvalId ?? ''))) return c.json({ error: 'not a lab approval' }, 404);
+  return c.json({ ok: true, status: abandonHumanSeal(c.req.param('sid'), body.code ?? 'cancelled') });
 });
 
 const LAB_STREAM_TYPES = new Set(['lab', 'audit', 'incident', 'approval', 'ledger', 'seal', 'human_seal', 'outbox']);

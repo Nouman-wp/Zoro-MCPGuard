@@ -57,7 +57,8 @@ export const config = {
     appId: env('WORLD_APP_ID'),
     rpId: env('WORLD_RP_ID'),
     signingKey: env('WORLD_SIGNING_KEY'),
-    environment: (env('WORLD_ENVIRONMENT', 'staging') as 'staging' | 'production'),
+    // staging: World ID Simulator; sandbox: the World ID Sandbox app (TestFlight / Play testing); production: World App.
+    environment: (env('WORLD_ENVIRONMENT', 'staging') as 'staging' | 'sandbox' | 'production'),
     verifyBase: env('WORLD_VERIFY_BASE', 'https://developer.world.org'),
     approvalTtlSec: Number(env('WORLD_APPROVAL_TTL_SEC', '300')),
   },
