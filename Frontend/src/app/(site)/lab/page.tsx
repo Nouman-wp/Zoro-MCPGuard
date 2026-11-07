@@ -1,16 +1,21 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Bot, FlaskConical, RotateCcw, ShieldCheck, Skull, StickyNote, Trophy, TriangleAlert } from 'lucide-react';
-import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, LoadingBlock, Notice, SeverityBadge, VerdictBadge, cx } from '@/components/ui';
-import { LayerProgress, PublicationBadges, type LayerState } from '@/components/security';
+import { Check, FlaskConical, Play, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Button, ErrorState, LoadingBlock, Notice, StatusPill, cx } from '@/components/ui';
+import type { LayerState } from '@/components/security';
 import { HumanSealModal, type SealableApproval } from '@/components/human-seal';
-import { EASE_EXPO, Spotlight } from '@/components/motion';
+import { EASE_EXPO } from '@/components/motion';
 import { PageIntro } from '@/components/site';
+import { SCENARIO_ART } from '@/components/illustrations';
+import { SentinelBuddy, type Mood } from '@/components/lab/sentinel-buddy';
+import { ReplayLanes } from '@/components/lab/replay-lanes';
+import { AlertTickets, AttackerView, Checkpoints, NetworkMap, Receipts } from '@/components/lab/bento';
+import { InfoTip, Tip } from '@/components/tip';
+import { BASICS, FLOW, PANEL_HELP, RESET_HELP, SCENARIO_HELP } from '@/components/lab/explain';
 import { api, useApi } from '@/lib/api';
-import { fmtDate, timeAgo } from '@/lib/format';
+import { timeAgo } from '@/lib/format';
 
 interface LabEvent {
   id: string;
@@ -33,15 +38,76 @@ interface LabStatus {
   requireAi: boolean;
 }
 
-const ACTOR: Record<LabEvent['actor'], { icon: typeof Bot; label: string; cls: string }> = {
-  step: { icon: FlaskConical, label: 'Lab', cls: 'text-ash' },
-  agent: { icon: Bot, label: 'Agent', cls: 'text-frosted' },
-  attacker: { icon: Skull, label: 'Attacker', cls: 'text-plasma' },
-  zoro: { icon: ShieldCheck, label: 'Zoro', cls: 'text-quartz' },
-  note: { icon: StickyNote, label: 'Note', cls: 'text-warn' },
-  result: { icon: Trophy, label: 'Result', cls: 'text-ok' },
-  error: { icon: TriangleAlert, label: 'Error', cls: 'text-danger' },
-};
+/** What leaked to the simulated outside world: hidden BCCs and requests to the attacker's collector. */
+function leakSummary(w: LabStatus['world'] | undefined) {
+  const bcc = (w?.outbox ?? []).filter((m) => m.bcc.length).length;
+  const net = (w?.network ?? []).length;
+  return { bcc, net, leaked: bcc + net > 0 };
+}
+
+/** Sentinel's mood and line, from the latest real event. */
+function narrate(d: LabStatus | null | undefined): { mood: Mood; say: string } {
+  const run = d?.run;
+  if (!run) return { mood: 'asleep', say: 'Nothing is running. Pick an attack above and I’ll talk you through every step as it happens.' };
+  const last = run.events[run.events.length - 1];
+  const { leaked } = leakSummary(d?.world);
+  if (run.status !== 'running') {
+    if (run.status === 'failed') return { mood: 'alarmed', say: 'The run stopped with an error. Reset the Lab and try again.' };
+    return leaked ? { mood: 'alarmed', say: 'Something reached the attacker this time. Look at “What actually happened” for exactly what got out.' } : { mood: 'happy', say: 'Done. The attack ran for real and the attacker got nothing. Scroll the timeline to see where I stopped it.' };
+  }
+  if (!last) return { mood: 'watching', say: 'Starting the scenario. Watching every call…' };
+  switch (last.actor) {
+    case 'attacker':
+      return { mood: 'alarmed', say: `Heads up: ${last.title}. I’m checking it now.` };
+    case 'zoro':
+      return { mood: 'relieved', say: `${last.title}. That one doesn’t get through.` };
+    case 'agent':
+      return { mood: 'watching', say: `The agent is acting: ${last.title}. Every call passes me first.` };
+    case 'result':
+      return { mood: leaked ? 'alarmed' : 'happy', say: last.title };
+    case 'error':
+      return { mood: 'alarmed', say: `Something went wrong: ${last.title}` };
+    default:
+      return { mood: 'watching', say: last.title };
+  }
+}
+
+
+/** Which of the five Lab steps is happening now, from the live run. */
+function currentStep(d: LabStatus | null | undefined): number {
+  const run = d?.run;
+  if (!run) return 0;
+  if (run.status !== 'running') return 4;
+  const ev = run.events;
+  if (ev.some((e) => e.actor === 'agent')) return 3;
+  if (ev.some((e) => e.actor === 'zoro')) return 2;
+  return 1;
+}
+
+/** The Lab in five ordered steps; the live one is highlighted. Every step explains itself on hover. */
+function FlowStrip({ step }: { step: number }) {
+  return (
+    <ol className="mt-8 grid grid-cols-1 gap-2 sm:grid-cols-5" aria-label="How the Attack Lab works">
+      {FLOW.map((f, i) => {
+        const done = i < step;
+        const now = i === step;
+        return (
+          <li key={f.title} className="relative">
+            <Tip content={f.tip} block className="h-full">
+              <div tabIndex={0} className={cx('flex h-full cursor-help items-center gap-3 rounded-[12px] border px-3.5 py-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent sm:flex-col sm:items-start sm:gap-2', now ? 'border-sapphire bg-lavender text-on-pastel shadow-[3px_3px_0_var(--border-strong)]' : done ? 'border-sapphire bg-mint-soft text-on-pastel' : 'border-obsidian bg-panel')}>
+                <span className={cx('flex size-7 shrink-0 items-center justify-center rounded-full border text-[13px] font-bold', now || done ? 'border-sapphire bg-panel text-quartz' : 'border-obsidian text-slate')}>{done ? <Check className="size-3.5" aria-hidden /> : i + 1}</span>
+                <span className="min-w-0">
+                  <span className="block text-[14.5px] font-semibold leading-tight">{f.title}</span>
+                  <span className={cx('mt-0.5 block text-[12.5px]', now || done ? 'opacity-80' : 'text-ash')}>{f.short}</span>
+                </span>
+              </div>
+            </Tip>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export default function LabPage() {
   const s = useApi<LabStatus>('/api/public/lab', { on: ['lab', 'lab_event', 'audit', 'incident', 'approval', 'seal', 'ledger', 'outbox', 'human_seal'], scope: 'lab' });
@@ -63,19 +129,28 @@ export default function LabPage() {
     }
   };
   const active = d?.scenarios.find((x) => x.id === d.run?.scenario);
+  const buddy = narrate(d);
+  const pending = (d?.approvals ?? []).filter((a) => a.status === 'pending');
 
   return (
     <div className="relative">
-      <div className="relative mx-auto max-w-[1200px] px-4 py-14 sm:px-6">
-        <PageIntro eyebrow="Attack Lab · simulation" a="Launch an attack." b="Watch it fail." />
-        <p className="mt-4 max-w-3xl text-[17px] font-light text-mist">
-          Intentionally vulnerable demonstration MCP servers, a scripted demo agent, and real attacks — all running through the same Gateway, Sentinel, Registry and Ledger as real traffic. Nothing here is a pre-recorded animation. Every record the Lab produces is labeled as a Lab record, and the Lab never touches your real servers or policy.
-        </p>
+      <div className="relative mx-auto max-w-[1240px] px-4 py-14 sm:px-6">
+        <PageIntro eyebrow="Attack Lab" a="Launch a real attack." b="Watch Zoro stop it." />
+        <p className="mt-5 max-w-[680px] text-[18px] leading-[1.6] text-ash">Deliberately vulnerable demo servers and a scripted agent, running through the same Zoro you would install. Nothing here is pre-recorded, and the Lab never touches your real servers or policy.</p>
+        <div className="mt-5 flex flex-wrap items-center gap-2 text-[13.5px]">
+          <span className="font-semibold text-quartz">New here? Hover a word:</span>
+          {BASICS.map((b) => (
+            <Tip key={b.term} content={b.tip}>
+              <button type="button" className="cursor-help rounded-full border border-dashed border-sapphire bg-panel px-3 py-1 font-medium text-quartz hover:bg-lavender-soft">
+                {b.term}
+              </button>
+            </Tip>
+          ))}
+        </div>
+        <FlowStrip step={currentStep(d)} />
         {d && !d.aiConfigured && (
-          <Notice tone="warn" title={d.requireAi ? 'AI review layer not configured' : 'Development mode: AI review layer not configured'} className="mt-6">
-            {d.requireAi
-              ? 'Clean versions stay pending, because Sentinel never guesses “sealed” — so some scenarios cannot show an allowed baseline. Attacks are still caught by the deterministic layer. Set GROQ_API_KEY (free at console.groq.com) for the full demonstration.'
-              : 'SENTINEL_REQUIRE_AI=false: seals are issued from the deterministic and differential layers only, and every verdict package records that the AI layer did not run.'}
+          <Notice tone="warn" title={d.requireAi ? 'AI review is off on this instance' : 'Development mode: AI review is off'} className="mt-6 max-w-[860px]">
+            {d.requireAi ? 'Clean versions stay pending, because Sentinel never guesses “sealed”, so a few scenarios can’t show an allowed baseline. Attacks are still caught by the rule-based layer. Add GROQ_API_KEY (free at console.groq.com) for the full demo.' : 'Seals come from the rule-based and diff layers only, and every verdict records that the AI layer did not run.'}
           </Notice>
         )}
         {err && (
@@ -85,204 +160,135 @@ export default function LabPage() {
         )}
         {s.error && <ErrorState error={s.error} retry={s.reload} />}
 
-        {/* Scenarios arrive from the daemon after mount, so each card animates itself rather than relying on a parent's in-view state. */}
-        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {(d?.scenarios ?? []).map((sc, i) => (
-            <motion.div key={sc.id} className="h-full" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE_EXPO, delay: 0.05 * i }}>
-            <Spotlight className={cx('group flex h-full flex-col rounded-[14px] border card-grad p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-[border-color] duration-300', d?.run?.scenario === sc.id ? 'border-frosted/50' : 'border-ink/[0.07] hover:border-ink/[0.14]')}>
-              <p className="text-[15px] font-medium">{sc.title}</p>
-              <p className="mt-2 flex-1 text-[13px] font-light leading-relaxed text-ash">{sc.attack}</p>
-              <Button size="sm" variant={d?.run?.scenario === sc.id ? 'primary' : 'ghost'} className="mt-4 w-full" disabled={running} loading={busy === sc.id} onClick={() => act(sc.id, () => api('/api/public/lab/start', { json: { scenario: sc.id } }))}>
-                {d?.run?.scenario === sc.id && running ? 'Running…' : 'Launch'}
-              </Button>
-            </Spotlight>
-            </motion.div>
-          ))}
+        {/* ---------- scenario picker ---------- */}
+        <div className="mt-12 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate">Step 1</p>
+            <h2 className="font-display mt-1 text-[28px] md:text-[34px]">Choose an attack</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Tip content={RESET_HELP.soft}><Button variant="secondary" size="sm" icon={<RotateCcw className="size-3.5" />} disabled={running} loading={busy === 'reset'} onClick={() => act('reset', () => api('/api/public/lab/reset', { json: { mode: 'soft' } }))}>
+              Reset
+            </Button></Tip>
+            <Tip content={RESET_HELP.full}><Button variant="subtle" size="sm" disabled={running} loading={busy === 'full'} onClick={() => act('full', () => api('/api/public/lab/reset', { json: { mode: 'full' } }))}>
+              Full reset
+            </Button></Tip>
+          </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button variant="ghost" size="sm" icon={<RotateCcw className="size-3.5" />} disabled={running} loading={busy === 'reset'} onClick={() => act('reset', () => api('/api/public/lab/reset', { json: { mode: 'soft' } }))}>
-            Reset Lab
-          </Button>
-          <Button variant="subtle" size="sm" disabled={running} loading={busy === 'full'} onClick={() => act('full', () => api('/api/public/lab/reset', { json: { mode: 'full' } }))}>
-            Full reset (re-audit from scratch)
-          </Button>
-          <span className="self-center text-[12px] text-ash">Reset keeps Lab audit history, so already-audited versions are recognized instantly — as they would be for every gateway.</span>
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {(d?.scenarios ?? []).map((sc, i) => {
+            const on = d?.run?.scenario === sc.id;
+            return (
+              <motion.div key={sc.id} className="h-full" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE_EXPO, delay: 0.04 * i }}>
+                <div className={cx('tabcard flex h-full flex-col overflow-hidden rounded-[12px] border bg-panel', on ? 'border-accent ring-2 ring-[color:var(--lavender)]' : 'border-sapphire')}>
+                  <div className={cx('border-b border-sapphire px-3 pt-2', on ? 'bg-lavender-soft' : 'bg-peach-soft')}>{SCENARIO_ART[sc.id]}</div>
+                  <div className="flex flex-1 flex-col p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[16.5px] font-semibold leading-snug">{sc.title}</p>
+                      <InfoTip content={SCENARIO_HELP[sc.id] ?? { title: sc.title, body: sc.attack }} label={`What is ${sc.title}?`} className="mt-0.5 shrink-0" />
+                    </div>
+                    <p className="mt-1.5 line-clamp-3 flex-1 text-[13.5px] leading-[1.5] text-ash">{sc.attack}</p>
+                    <Button size="sm" variant={on ? 'primary' : 'secondary'} className="mt-4 w-full" icon={on && running ? undefined : <Play className="size-3.5" />} disabled={running} loading={busy === sc.id} onClick={() => act(sc.id, () => api('/api/public/lab/start', { json: { scenario: sc.id } }))}>
+                      {on && running ? 'Running…' : on ? 'Run again' : 'Launch'}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
+        {/* ---------- dashboard ---------- */}
+        <div className="mt-14">
+          <p className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate">Step 2</p>
+          <h2 className="font-display mt-1 text-[28px] md:text-[34px]">Watch it happen</h2>
+          <p className="mt-1 max-w-[640px] text-[15px] text-ash">Sentinel, Zoro’s inspector, narrates every step. Hover any “?” to learn what you are looking at.</p>
+        </div>
         {!d && s.loading ? (
           <LoadingBlock rows={6} />
         ) : (
-          <div className="mt-8 grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-            <Card>
-              <CardHeader title={active ? `Timeline · ${active.title}` : 'Timeline'} subtitle={d?.run ? `${d.run.status} · started ${timeAgo(d.run.startedAt)}` : 'Launch a scenario to see each step as it happens'} action={running ? <Badge tone="info" dot>live</Badge> : undefined} />
-              {!d?.run ? (
-                <EmptyState icon={<FlaskConical className="size-5" />} title="No scenario running" description="Pick a scenario above. Each one explains what the attacker does and what Zoro should show." />
-              ) : (
-                <ol className="max-h-[720px] divide-y divide-inkline overflow-y-auto">
-                  {d.run.events.map((e) => {
-                    const a = ACTOR[e.actor];
-                    return (
-                      <li key={e.id} className="slide-in flex gap-3 px-5 py-3">
-                        <a.icon className={cx('mt-0.5 size-4 shrink-0', a.cls)} aria-hidden />
-                        <div className="min-w-0">
-                          <p className="text-[14px] text-quartz">
-                            <span className={cx('mr-2 text-[11px] uppercase tracking-wider', a.cls)}>{a.label}</span>
-                            {e.title}
-                          </p>
-                          {e.detail && <p className="mt-1 whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-ash">{e.detail}</p>}
-                        </div>
-                      </li>
-                    );
-                  })}
-                  {active && d.run.status !== 'running' && (
-                    <li className="bg-cobalt/40 px-5 py-4 text-[14px] text-mist">
-                      <span className="font-medium text-quartz">What this shows: </span>
-                      {active.shows}
-                    </li>
-                  )}
-                </ol>
-              )}
-            </Card>
-
-            <div className="space-y-4">
-              {d && d.approvals.filter((a) => a.status === 'pending').length > 0 && (
-                <Card highlight>
-                  <CardHeader title="Waiting for a person" subtitle="The agent’s call is paused until someone decides" />
-                  <ul className="divide-y divide-cobalt-edge">
-                    {d.approvals
-                      .filter((a) => a.status === 'pending')
-                      .map((a) => (
-                        <li key={a.id} className="px-5 py-3">
-                          <p className="text-[14px] text-quartz">
-                            {a.ref}: {a.summary}
-                          </p>
-                          <p className="mt-1 text-[13px] text-mist">{a.reason}</p>
-                          <div className="mt-2 flex gap-2">
-                            <Button size="sm" variant="danger" onClick={() => act(`deny-${a.id}`, () => api(`/api/public/lab/approvals/${a.id}/deny`, { json: {} }))} loading={busy === `deny-${a.id}`}>
-                              Deny
-                            </Button>
-                            {a.human_seal ? (
-                              <Button size="sm" onClick={() => setSealFor(a)}>
-                                Approve with Human Seal
-                              </Button>
-                            ) : null}
-                          </div>
-                        </li>
-                      ))}
-                  </ul>
-                </Card>
-              )}
-
-              <Card>
-                <CardHeader title="Sentinel" subtitle="Latest Lab audits, layer by layer" />
-                {d?.audits.length ? (
-                  <ul className="divide-y divide-inkline">
-                    {d.audits.slice(0, 4).map((a) => (
-                      <li key={a.id} className="px-5 py-3">
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="text-[14px] text-quartz">
-                            {a.server_label}/{a.name}
-                            {a.source === 'artifact' && <span className="ml-2 text-[12px] text-ash">(code change)</span>}
-                          </span>
-                          {a.verdict ? <VerdictBadge verdict={a.verdict} /> : <Badge tone="info">{a.status}</Badge>}
-                        </div>
-                        <LayerProgress layers={a.layers} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="px-5 py-4 text-[13px] text-ash">No audits yet.</p>
-                )}
-              </Card>
-
-              <Card>
-                <CardHeader title="Incidents" subtitle="Lab incidents only" />
-                {d?.incidents.length ? (
-                  <ul className="divide-y divide-inkline">
-                    {d.incidents.slice(0, 8).map((i) => (
-                      <li key={i.id} className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <SeverityBadge severity={i.severity} />
-                          <span className="text-[12px] text-ash">INC-{i.seq} · {i.status}{i.count > 1 ? ` · ×${i.count}` : ''}</span>
-                        </div>
-                        <p className="mt-1 text-[14px] text-quartz">{i.title}</p>
-                        <p className="mt-0.5 text-[13px] text-ash">{i.summary}</p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="px-5 py-4 text-[13px] text-ash">No incidents.</p>
-                )}
-              </Card>
-
-              <Card>
-                <CardHeader title="What actually happened" subtitle="The simulated outside world — what the attacker received" />
-                <div className="space-y-3 px-5 py-4 text-[13px]">
-                  <WorldList title="Emails delivered" items={(d?.world.outbox ?? []).map((m) => `${fmtDate(m.at)} → ${m.to}${m.bcc.length ? `  ⚠ BCC ${m.bcc.join(', ')}` : ''}`)} />
-                  <WorldList title="Transfers" items={(d?.world.transactions ?? []).map((t) => `${fmtDate(t.at)} ${t.amount} ${t.token} → ${t.to}`)} />
-                  <WorldList title="Requests to attacker hosts" items={(d?.world.network ?? []).map((n) => `${fmtDate(n.at)} ${n.via} → ${n.to} (${n.bytes} bytes)`)} />
+          <div className="mt-6 space-y-5">
+            {/* mission control: Sentinel narrates above the replay lanes */}
+            <section className="overflow-hidden rounded-[16px] border border-sapphire bg-panel">
+              <div className="grid grid-cols-1 items-center gap-4 border-b border-sapphire bg-lavender-soft px-5 py-5 md:grid-cols-[1fr_auto] md:px-6">
+                <SentinelBuddy mood={buddy.mood} say={buddy.say} />
+                <div className="flex items-center gap-3 md:flex-col md:items-end">
+                  <p className="flex items-center gap-1.5 text-[18px] font-semibold">
+                    {active ? active.title : 'Attack replay'} <InfoTip content={PANEL_HELP.replay} label="What is the attack replay?" />
+                  </p>
+                  <p className="text-[13px] text-ash">{d?.run ? `${d.run.status === 'running' ? 'Running' : d.run.status === 'done' ? 'Finished' : 'Stopped'} · started ${timeAgo(d.run.startedAt)}` : 'Idle'}</p>
+                  {running && <StatusPill state="pending">Live</StatusPill>}
                 </div>
-              </Card>
+              </div>
+              {!d?.run ? (
+                <div className="flex flex-col items-center px-6 py-14 text-center">
+                  <FlaskConical className="size-8 text-slate" strokeWidth={1.5} aria-hidden />
+                  <p className="mt-4 text-[17px] font-semibold">No attack running</p>
+                  <p className="mt-1 max-w-[380px] text-[14.5px] text-ash">Launch one above. The attacker, the agent and Zoro each get a lane, so you can see who did what to whom.</p>
+                </div>
+              ) : (
+                <div className="max-h-[620px] overflow-y-auto">
+                  <ReplayLanes events={d.run.events} running={running} />
+                  {active && d.run.status !== 'running' && (
+                    <p className="mx-4 mb-4 rounded-[12px] border border-sapphire bg-mint-soft px-4 py-3.5 text-[14.5px] leading-[1.55] text-on-pastel">
+                      <span className="font-semibold">What this proves: </span>
+                      {active.shows}
+                    </p>
+                  )}
+                </div>
+              )}
+            </section>
 
-              <Card>
-                <CardHeader title="Lab servers" subtitle="Connected through the Zoro Gateway" />
-                <ul className="divide-y divide-inkline">
-                  {(d?.servers ?? []).map((sv) => (
-                    <li key={sv.label} className="px-5 py-2.5 text-[13px]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-quartz">{sv.label}</span>
-                        <span className="text-ash">v{sv.version} · {sv.connected ? 'connected' : 'not connected'}</span>
+            {pending.length > 0 && (
+              <section className="overflow-hidden rounded-[16px] border-2 border-sapphire bg-lavender-soft">
+                <header className="flex flex-wrap items-center gap-3 px-5 pt-4">
+                  <ShieldCheck className="size-5" aria-hidden />
+                  <h3 className="font-display text-[22px]">Waiting for you</h3>
+                  <span className="text-[13px] text-ash">The agent is paused until a person decides.</span>
+                  <InfoTip content={PANEL_HELP.approvals} label="Why is Zoro waiting for me?" />
+                </header>
+                <ul className="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
+                  {pending.map((a) => (
+                    <li key={a.id} className="rounded-[12px] border border-sapphire bg-panel p-4">
+                      <p className="text-[15px] font-semibold">{a.summary}</p>
+                      <p className="mt-1 text-[13.5px] text-ash">
+                        <span className="font-mono text-[12px] text-slate">{a.ref}</span> · {a.reason}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {a.human_seal ? (
+                          <Button size="sm" onClick={() => setSealFor(a)}>
+                            Approve with World ID
+                          </Button>
+                        ) : null}
+                        <Button size="sm" variant="danger" onClick={() => act(`deny-${a.id}`, () => api(`/api/public/lab/approvals/${a.id}/deny`, { json: {} }))} loading={busy === `deny-${a.id}`}>
+                          Deny
+                        </Button>
                       </div>
-                      <p className="text-ash">{sv.state}</p>
                     </li>
                   ))}
                 </ul>
-              </Card>
+              </section>
+            )}
 
-              {d && d.seals.length > 0 && (
-                <Card>
-                  <CardHeader title="Public records" subtitle="Lab verdicts are published under the lab namespace and labeled as lab records" />
-                  <ul className="divide-y divide-inkline">
-                    {d.seals.slice(0, 6).map((x) => (
-                      <li key={x.fingerprint} className="px-5 py-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <Link href={`/verify?q=${x.fingerprint}`} className="text-[13px] text-quartz hover:underline">
-                            {x.server_label}/{x.name}
-                          </Link>
-                          <VerdictBadge verdict={x.verdict} status={x.status} />
-                        </div>
-                        <div className="mt-1.5">
-                          <PublicationBadges seal={x} />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              )}
+            {/* bento */}
+            <div className="pt-8">
+              <p className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate">Step 3</p>
+              <h2 className="font-display mt-1 text-[28px] md:text-[34px]">Check the evidence</h2>
+              <p className="mt-1 max-w-[640px] text-[15px] text-ash">Did anything reach the attacker? What did Zoro check, and what did it publish? Read the numbered panels in order.</p>
+            </div>
+            <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_1.25fr]">
+              <AttackerView world={d?.world} hasRun={Boolean(d?.run)} />
+              <Checkpoints audits={d?.audits ?? []} />
+            </div>
+            <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
+              <NetworkMap servers={d?.servers ?? []} leaked={leakSummary(d?.world).leaked} />
+              <AlertTickets incidents={d?.incidents ?? []} />
+              <Receipts seals={d?.seals ?? []} />
             </div>
           </div>
         )}
       </div>
       <HumanSealModal approval={sealFor} open={Boolean(sealFor)} onClose={() => setSealFor(null)} mode="lab" onDone={() => void s.reload()} />
-    </div>
-  );
-}
-
-function WorldList({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div>
-      <p className="text-[12px] uppercase tracking-wider text-ash">{title}</p>
-      {items.length ? (
-        <ul className="mt-1 space-y-0.5 font-mono text-[12px] text-mist">
-          {items.map((i, n) => (
-            <li key={n} className={i.includes('⚠') ? 'text-danger' : undefined}>
-              {i}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-1 text-ash">None.</p>
-      )}
     </div>
   );
 }
