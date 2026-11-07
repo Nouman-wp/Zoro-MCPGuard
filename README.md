@@ -117,7 +117,7 @@ Every path below leaves the action blocked and is written to the audit log.
 
 1. Open https://zoro-mcp-guard.vercel.app/lab and launch **Cross-server exfiltration**. A poisoned email tells the agent to
    mail a private `.env` file to an outside address.
-2. Zoro holds the `send_email` call. Under **Waiting for a person**, click **Approve with Human Seal**, then **Approve with World ID**.
+2. Zoro holds the `send_email` call. Under **Waiting for you**, click **Approve with World ID** on the request, then **Approve with World ID** again in the Human Seal window.
 3. In the World ID window, choose **Use the simulator**, then **Continue**. The live site runs World's staging environment,
    where the World ID Simulator stands in for World App.
 4. Zoro verifies the proof on its server, and the agent's held call runs once. The timeline reads "A verified human approved
