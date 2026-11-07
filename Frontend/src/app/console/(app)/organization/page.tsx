@@ -53,7 +53,7 @@ interface JoinStart {
   orgName: string;
   shareLevel: 'inventory' | 'events';
   sealId: string;
-  request: { app_id: `app_${string}`; action: string; signal: string; environment: 'staging' | 'production'; rp_context: Record<string, unknown>; testIdentities: boolean };
+  request: { app_id: `app_${string}`; action: string; signal: string; environment: 'staging' | 'sandbox' | 'production'; rp_context: Record<string, unknown>; testIdentities: boolean };
 }
 
 const VERDICT_TONE: Record<string, 'ok' | 'warn' | 'danger' | 'neutral'> = { sealed: 'ok', clean: 'ok', protected: 'ok', sealed_with_warnings: 'warn', warning: 'warn', pending: 'neutral', unknown: 'neutral', unsafe: 'danger', unprotected: 'danger' };
@@ -71,13 +71,13 @@ function WorldIdJoin({ start, onResult, onCancel }: { start: JoinStart; onResult
   useEffect(() => {
     void import('@worldcoin/idkit').then((m) => {
       setWidget(() => m.IDKitRequestWidget as unknown as ComponentType<Record<string, unknown>>);
-      setPreset(() => m.orbLegacy as (o: { signal?: string }) => unknown);
+      setPreset(() => m.proofOfHuman as (o: { signal?: string }) => unknown);
     });
   }, []);
   const req = start.request;
   return (
     <div className="space-y-3">
-      {req.testIdentities && <Notice tone="warn" title="Test identities">World ID {req.environment}: verification uses the World ID Simulator, not production identity assurance.</Notice>}
+      {req.testIdentities && <Notice tone="warn" title="Test identities">World ID {req.environment}: verification uses {req.environment === 'sandbox' ? 'the World ID Sandbox app' : 'the World ID Simulator'}, not production identity assurance.</Notice>}
       <div className="flex gap-2">
         <Button icon={<Fingerprint className="size-4" />} onClick={() => setOpen(true)}>
           Open World ID verification
