@@ -12,6 +12,7 @@ process.env.SENTINEL_REQUIRE_AI = 'false';
 process.env.ZORO_ENS_ROOT = '';
 process.env.HEDERA_OPERATOR_ID = '';
 process.env.WORLD_APP_ID = '';
+process.env.ZORO_LAB_APPROVAL_WAIT_SEC = '25';
 
 const { gateway } = await import('../src/gateway/gateway');
 const { lab } = await import('../src/lab/lab');

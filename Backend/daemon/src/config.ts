@@ -33,6 +33,8 @@ export const config = {
   publicUrl: env('ZORO_PUBLIC_URL', 'http://localhost:3000'),
   refreshIntervalSec: Number(env('ZORO_REFRESH_INTERVAL_SEC', '60')),
   approvalWaitSec: Number(env('ZORO_APPROVAL_WAIT_SEC', '45')),
+  /** How long the Attack Lab's scripted agent waits for a decision: long enough to complete a World ID Human Seal. */
+  labApprovalWaitSec: Number(env('ZORO_LAB_APPROVAL_WAIT_SEC', '90')),
   approvalWindowSec: Number(env('ZORO_APPROVAL_WINDOW_SEC', '900')),
   anchorIntervalSec: Number(env('ZORO_ANCHOR_INTERVAL_SEC', '900')),
   maxDefinitionBytes: Number(env('ZORO_MAX_DEFINITION_BYTES', '65536')),
