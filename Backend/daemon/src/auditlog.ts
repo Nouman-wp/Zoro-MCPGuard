@@ -18,6 +18,11 @@ export type LogKind =
   | 'namespace'
   | 'anchor'
   | 'danger_zone'
+  | 'lockdown'
+  | 'package'
+  | 'skill'
+  | 'hook'
+  | 'org'
   | 'lab';
 
 export const GENESIS_HASH = '0x' + '0'.repeat(64);

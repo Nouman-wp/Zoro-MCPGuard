@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
     return [
       { source: '/api/healthz', destination: `${daemon}/healthz` },
       { source: '/api/public/:path*', destination: `${daemon}/api/public/:path*` },
+      // Organization server API: members’ Zoro instances join and sync through the public site address.
+      { source: '/api/org/:path*', destination: `${daemon}/api/org/:path*` },
       { source: '/api/console/:path*', destination: `${daemon}/api/console/:path*` },
     ];
   },

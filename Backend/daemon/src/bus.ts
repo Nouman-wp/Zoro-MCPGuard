@@ -15,7 +15,13 @@ export type BusEventType =
   | 'human_seal'
   | 'policy'
   | 'status'
-  | 'log';
+  | 'log'
+  | 'lockdown'
+  | 'package'
+  | 'skill'
+  | 'power'
+  | 'watchdog'
+  | 'org';
 
 export interface BusEvent {
   type: BusEventType;

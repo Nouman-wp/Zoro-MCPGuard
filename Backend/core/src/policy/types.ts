@@ -1,4 +1,6 @@
-import type { Capability, ChangeClass, Decision, ServerMode, SinkType, SourceLabel } from '../types';
+import type { Capability, ChangeClass, Decision, ServerMode, Severity, SinkType, SourceLabel } from '../types';
+import type { IrreversibleSignal } from '../irreversible';
+import type { DecodedTransaction } from '../tx';
 
 export type ProfileId = 'standard' | 'strict' | 'lab';
 
@@ -31,7 +33,15 @@ export type Rule =
   | (RuleBase & { type: 'network_grace'; mode: 'strict' | 'grace'; highImpactMode: 'strict' | 'grace'; graceMinutes: number })
   | (RuleBase & { type: 'human_seal'; for: HumanSealTrigger[] })
   | (RuleBase & { type: 'output_shield'; server: string | '*'; tool: string | '*'; action: ShieldAction })
-  | (RuleBase & { type: 'high_impact_ask'; capabilities: Capability[]; humanSeal: boolean });
+  | (RuleBase & { type: 'high_impact_ask'; capabilities: Capability[]; humanSeal: boolean })
+  /** Undo-impossible brake: irreversible actions always need a person’s yes. `exempt` holds "server/tool" (or "server/*"). */
+  | (RuleBase & { type: 'irreversible_brake'; action: 'ask' | 'block'; humanSeal: boolean; cooldownSeconds: number; exempt: string[] })
+  /** Transaction decoder: risky sign/send calls (unlimited approvals, unknown recipients, large amounts) ask first. */
+  | (RuleBase & { type: 'transaction_guard'; largeAmount: number; knownRecipients: string[]; action: 'ask' | 'block'; humanSeal: boolean })
+  /** New-power alarm: the first use of a capability an agent did not have when last approved needs approval. */
+  | (RuleBase & { type: 'new_power_alarm'; capabilities: Capability[]; humanSealFor: Capability[] })
+  /** Recall checker: servers whose package has a known vulnerability at or above minSeverity. */
+  | (RuleBase & { type: 'known_vulnerability'; minSeverity: Exclude<Severity, 'info'>; action: 'ask' | 'block' });
 
 export type RuleType = Rule['type'];
 
@@ -80,6 +90,16 @@ export interface CallContext {
   flows: FlowMatch[];
   approvalGranted?: boolean;
   overrideGranted?: boolean;
+  /** irreversible-action signals for this exact call (definition and arguments) */
+  irreversible?: IrreversibleSignal[];
+  /** the decoded transaction, when this is a sign/send call */
+  transaction?: DecodedTransaction | null;
+  /** capabilities of this tool that the agent gained since its last approval */
+  pendingCapabilities?: Capability[];
+  /** known vulnerabilities in the server’s package */
+  vulnerabilities?: { id: string; severity: Severity; fixed?: string | null }[];
+  /** global lockdown (panic button) */
+  lockdown?: { by: string; at: number; reason: string | null } | null;
 }
 
 export type ReasonCategory =
@@ -99,12 +119,17 @@ export type ReasonCategory =
   | 'rate_limited'
   | 'agent_restricted'
   | 'data_flow'
-  | 'time_window';
+  | 'time_window'
+  | 'irreversible'
+  | 'transaction_risk'
+  | 'new_capability'
+  | 'known_vulnerability'
+  | 'lockdown';
 
 export interface TraceEntry {
   step: number;
   ruleId: string;
-  ruleType: RuleType | 'server_mode' | 'seal';
+  ruleType: RuleType | 'server_mode' | 'seal' | 'lockdown';
   outcome: Decision | 'skip';
   detail: string;
 }
@@ -118,5 +143,7 @@ export interface Evaluation {
   reasonCategory: ReasonCategory;
   humanSeal: boolean;
   observe: boolean;
+  /** seconds to wait, visibly, after approval before an irreversible action runs */
+  cooldownSeconds?: number;
   trace: TraceEntry[];
 }

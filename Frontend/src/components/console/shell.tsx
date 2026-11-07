@@ -5,18 +5,19 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  Activity, Bell, Bot, ChevronDown, FlaskConical, ClipboardCheck, Command, FileText, GitPullRequestArrow, Globe, Inbox, LayoutDashboard, LogOut, Menu, Scale, ScrollText, Search, Server, Settings, ShieldHalf, Siren, Sparkles, Stamp, Waypoints, X,
+  Activity, Bell, Bot, Building, ChevronDown, ClipboardCheck, Command, FileText, FlaskConical, GitPullRequestArrow, Globe, Inbox, LayoutDashboard, LogOut, Menu, Package, Scale, ScrollText, Search, Server, Settings, ShieldHalf, Siren, Sparkles, Stamp, Waypoints, X,
 } from 'lucide-react';
 import { Logo } from '../site';
 import { Badge, Button, Notice, SeverityBadge, cx, inputCls } from '../ui';
 import { AskZoroPanel } from './ask';
+import { LockdownBanner, PanicButton } from './panic';
 import { ThemeToggle } from '../theme';
 import { api, useApi, useEvents } from '@/lib/api';
 import { daemonDownHint } from '@/lib/backend';
 import { timeAgo } from '@/lib/format';
 
 export interface ConsoleStatus {
-  state: 'protected' | 'attention' | 'degraded' | 'observe' | 'not_configured';
+  state: 'protected' | 'attention' | 'degraded' | 'observe' | 'not_configured' | 'lockdown';
   headline: string;
   openCritical: number;
   pendingApprovals: number;
@@ -31,8 +32,8 @@ export interface ConsoleStatus {
 const NAV: { group: string; items: { href: string; label: string; icon: typeof Activity; badge?: 'approvals' | 'incidents' }[] }[] = [
   { group: '', items: [{ href: '/console', label: 'Overview', icon: LayoutDashboard }] },
   { group: 'Monitor', items: [{ href: '/console/traffic', label: 'Live traffic', icon: Activity }, { href: '/console/incidents', label: 'Incidents', icon: Siren, badge: 'incidents' }, { href: '/console/approvals', label: 'Approvals', icon: ClipboardCheck, badge: 'approvals' }, { href: '/console/quarantine', label: 'Quarantine', icon: ShieldHalf }] },
-  { group: 'Inventory', items: [{ href: '/console/servers', label: 'Servers', icon: Server }, { href: '/console/agents', label: 'Agents', icon: Bot }, { href: '/console/flows', label: 'Data flows', icon: Waypoints }] },
-  { group: 'Govern', items: [{ href: '/console/policies', label: 'Policies', icon: Scale }, { href: '/console/publisher', label: 'Publisher', icon: Stamp }, { href: '/console/disputes', label: 'Disputes', icon: GitPullRequestArrow }] },
+  { group: 'Inventory', items: [{ href: '/console/servers', label: 'Servers', icon: Server }, { href: '/console/agents', label: 'Agents', icon: Bot }, { href: '/console/packages', label: 'Packages & skills', icon: Package }, { href: '/console/flows', label: 'Data flows', icon: Waypoints }] },
+  { group: 'Govern', items: [{ href: '/console/policies', label: 'Policies', icon: Scale }, { href: '/console/publisher', label: 'Publisher', icon: Stamp }, { href: '/console/disputes', label: 'Disputes', icon: GitPullRequestArrow }, { href: '/console/organization', label: 'Organization', icon: Building }] },
   { group: 'Evidence', items: [{ href: '/console/log', label: 'Audit log', icon: ScrollText }, { href: '/console/reports', label: 'Reports', icon: FileText }, { href: '/lab', label: 'Attack Lab', icon: FlaskConical }] },
   { group: 'System', items: [{ href: '/console/onboarding', label: 'Onboarding', icon: Inbox }, { href: '/console/settings', label: 'Settings', icon: Settings }] },
 ];
@@ -43,6 +44,7 @@ const STATE_META: Record<ConsoleStatus['state'], { label: string; dot: string }>
   degraded: { label: 'Degraded', dot: 'bg-warn' },
   observe: { label: 'Observe mode', dot: 'bg-warn' },
   not_configured: { label: 'Not protecting yet', dot: 'bg-slate' },
+  lockdown: { label: 'Lockdown', dot: 'bg-danger' },
 };
 
 function StatusIndicator({ status, down }: { status: ConsoleStatus | null; down: boolean }) {
@@ -283,7 +285,7 @@ function Toasts() {
 
 export function ConsoleShell({ children }: { children: ReactNode }) {
   const path = usePathname();
-  const status = useApi<ConsoleStatus>('/api/console/status', { on: ['incident', 'approval', 'server', 'outbox', 'policy', 'seal'], interval: 20_000 });
+  const status = useApi<ConsoleStatus>('/api/console/status', { on: ['incident', 'approval', 'server', 'outbox', 'policy', 'seal', 'lockdown', 'status'], interval: 20_000 });
   const [palette, setPalette] = useState(false);
   const [ask, setAsk] = useState(false);
   const [mobile, setMobile] = useState(false);
@@ -363,6 +365,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
           </button>
           <StatusIndicator status={s} down={down} />
           <div className="ml-auto flex items-center gap-1.5">
+            <PanicButton />
             <GlobalSearch />
             <NotificationCenter />
             <ThemeToggle />
@@ -378,6 +381,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
             </Notice>
           </div>
         )}
+        <LockdownBanner />
         {s?.state === 'observe' && (
           <div className="px-4 pt-4 md:px-8">
             <Notice tone="warn" title="Observe mode is active">

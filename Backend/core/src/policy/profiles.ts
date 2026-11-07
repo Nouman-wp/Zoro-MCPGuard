@@ -16,6 +16,10 @@ export function defaultPolicy(profile: ProfileId): Policy {
         r({ id: 'network-grace', type: 'network_grace', enabled: true, mode: 'strict', highImpactMode: 'strict', graceMinutes: 0 }),
         r({ id: 'human-seal', type: 'human_seal', enabled: true, for: ['override', 'high_risk_ask', 'policy_weakening', 'capability_expansion_release', 'namespace_claim', 'dispute'] }),
         r({ id: 'shield', type: 'output_shield', enabled: true, server: '*', tool: '*', action: 'redact' }),
+        r({ id: 'irreversible', type: 'irreversible_brake', enabled: true, action: 'ask', humanSeal: true, cooldownSeconds: 10, exempt: [] }),
+        r({ id: 'transactions', type: 'transaction_guard', enabled: true, largeAmount: 100, knownRecipients: [], action: 'ask', humanSeal: true }),
+        r({ id: 'new-power', type: 'new_power_alarm', enabled: true, capabilities: ['send_communication', 'financial_action', 'transaction_signing', 'code_execution', 'credential_access', 'database_write', 'irreversible_action'], humanSealFor: ['financial_action', 'transaction_signing'] }),
+        r({ id: 'known-vulns', type: 'known_vulnerability', enabled: true, minSeverity: 'critical', action: 'block' }),
       ],
     };
   }
@@ -30,6 +34,9 @@ export function defaultPolicy(profile: ProfileId): Policy {
         r({ id: 'network-grace', type: 'network_grace', enabled: true, mode: 'grace', highImpactMode: 'grace', graceMinutes: 240 }),
         r({ id: 'human-seal', type: 'human_seal', enabled: true, for: ['override', 'high_risk_ask', 'namespace_claim', 'dispute'] }),
         r({ id: 'shield', type: 'output_shield', enabled: true, server: '*', tool: '*', action: 'annotate' }),
+        r({ id: 'irreversible', type: 'irreversible_brake', enabled: true, action: 'ask', humanSeal: false, cooldownSeconds: 0, exempt: [] }),
+        r({ id: 'transactions', type: 'transaction_guard', enabled: true, largeAmount: 1000, knownRecipients: ['0x5afe00000000000000000000000000000000ab12'], action: 'ask', humanSeal: true }),
+        r({ id: 'new-power', type: 'new_power_alarm', enabled: true, capabilities: ['send_communication', 'financial_action', 'transaction_signing', 'code_execution', 'credential_access', 'database_write', 'irreversible_action'], humanSealFor: ['financial_action', 'transaction_signing'] }),
       ],
     };
   }
@@ -45,12 +52,16 @@ export function defaultPolicy(profile: ProfileId): Policy {
       r({ id: 'network-grace', type: 'network_grace', enabled: true, mode: 'grace', highImpactMode: 'strict', graceMinutes: 60 }),
       r({ id: 'human-seal', type: 'human_seal', enabled: true, for: ['override', 'high_risk_ask', 'namespace_claim', 'dispute'] }),
       r({ id: 'shield', type: 'output_shield', enabled: true, server: '*', tool: '*', action: 'annotate' }),
+      r({ id: 'irreversible', type: 'irreversible_brake', enabled: true, action: 'ask', humanSeal: false, cooldownSeconds: 0, exempt: [] }),
+      r({ id: 'transactions', type: 'transaction_guard', enabled: true, largeAmount: 1000, knownRecipients: [], action: 'ask', humanSeal: true }),
+      r({ id: 'new-power', type: 'new_power_alarm', enabled: true, capabilities: ['send_communication', 'financial_action', 'transaction_signing', 'code_execution', 'credential_access', 'database_write', 'irreversible_action'], humanSealFor: ['financial_action', 'transaction_signing'] }),
+      r({ id: 'known-vulns', type: 'known_vulnerability', enabled: false, minSeverity: 'critical', action: 'block' }),
     ],
   };
 }
 
 export const PROFILE_DESCRIPTIONS: Record<ProfileId, string> = {
-  standard: 'Balanced protection for individuals. Sealed tools run; warnings and risky data flows ask first; payments and signing need a Human Seal.',
+  standard: 'Balanced protection for individuals. Sealed tools run; warnings, risky data flows, irreversible actions and new agent powers ask first; payments and signing need a Human Seal.',
   strict: 'For organizations and financial tools. Only cosmetic updates auto-release, untrusted-to-external flows are blocked, and every loosening change needs a Human Seal.',
   lab: 'Permissive profile for the Attack Lab and testing. Never use it for real servers.',
 };

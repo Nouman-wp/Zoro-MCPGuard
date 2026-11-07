@@ -138,6 +138,67 @@ CREATE TABLE IF NOT EXISTS baselines (
 );
 
 CREATE TABLE IF NOT EXISTS corpus_runs (id TEXT PRIMARY KEY, ts INTEGER NOT NULL, ruleset TEXT NOT NULL, ai TEXT, results TEXT NOT NULL);
+
+-- New-power alarm: what each agent could do when it was last approved
+CREATE TABLE IF NOT EXISTS agent_powers (
+  agent TEXT NOT NULL, capability TEXT NOT NULL, state TEXT NOT NULL, baseline INTEGER NOT NULL DEFAULT 0,
+  first_seen INTEGER NOT NULL, approved_at INTEGER, approval_id TEXT, lab INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (agent, capability)
+);
+
+-- Package verification (npm, PyPI) and where each package was seen
+CREATE TABLE IF NOT EXISTS packages (
+  ecosystem TEXT NOT NULL, name TEXT NOT NULL, version TEXT NOT NULL, verdict TEXT NOT NULL, report TEXT NOT NULL,
+  checked_at INTEGER NOT NULL, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL,
+  PRIMARY KEY (ecosystem, name, version)
+);
+CREATE TABLE IF NOT EXISTS package_uses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, ecosystem TEXT NOT NULL, name TEXT NOT NULL, version TEXT,
+  requested TEXT NOT NULL, source TEXT NOT NULL, ref TEXT, decision TEXT, agent TEXT
+);
+CREATE INDEX IF NOT EXISTS package_uses_name ON package_uses(ecosystem, name, ts);
+
+-- Skills, plugins, custom agents and commands the agent will follow
+CREATE TABLE IF NOT EXISTS skills (
+  path TEXT PRIMARY KEY, name TEXT NOT NULL, fingerprint TEXT NOT NULL, verdict TEXT NOT NULL, findings TEXT NOT NULL,
+  source TEXT NOT NULL, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL
+);
+
+-- Settings watchdog: last known content of each AI client configuration file
+CREATE TABLE IF NOT EXISTS config_snapshots (
+  path TEXT PRIMARY KEY, client TEXT, hash TEXT NOT NULL, content TEXT NOT NULL, good_content TEXT,
+  updated_at INTEGER NOT NULL, expected_until INTEGER NOT NULL DEFAULT 0
+);
+
+-- Recall checker: known vulnerabilities per server package
+CREATE TABLE IF NOT EXISTS server_vulns (server_id TEXT NOT NULL, package TEXT NOT NULL, ecosystem TEXT NOT NULL, vulns TEXT NOT NULL, checked_at INTEGER NOT NULL, PRIMARY KEY (server_id, package));
+
+-- Cache for public lookups (npm registry, OSV)
+CREATE TABLE IF NOT EXISTS http_cache (key TEXT PRIMARY KEY, value TEXT NOT NULL, fetched_at INTEGER NOT NULL);
+
+-- Organization host: members are verified humans (World ID nullifier per org), devices sync their inventory
+CREATE TABLE IF NOT EXISTS orgs (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL, lockdown TEXT, share_level TEXT NOT NULL DEFAULT 'inventory');
+CREATE TABLE IF NOT EXISTS org_members (
+  org_id TEXT NOT NULL, id TEXT NOT NULL, nullifier TEXT NOT NULL, name TEXT NOT NULL, role TEXT NOT NULL,
+  joined_at INTEGER NOT NULL, last_seen INTEGER, status TEXT NOT NULL DEFAULT 'active',
+  PRIMARY KEY (org_id, id), UNIQUE (org_id, nullifier)
+);
+CREATE TABLE IF NOT EXISTS org_devices (
+  org_id TEXT NOT NULL, id TEXT NOT NULL, member_id TEXT NOT NULL, hostname TEXT, os TEXT, version TEXT,
+  enrolled_at INTEGER NOT NULL, last_seen INTEGER, status TEXT NOT NULL DEFAULT 'active', summary TEXT,
+  PRIMARY KEY (org_id, id)
+);
+CREATE TABLE IF NOT EXISTS org_inventory (
+  org_id TEXT NOT NULL, device_id TEXT NOT NULL, member_id TEXT NOT NULL, kind TEXT NOT NULL, key TEXT NOT NULL,
+  name TEXT NOT NULL, version TEXT, verdict TEXT, detail TEXT, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL,
+  PRIMARY KEY (org_id, device_id, kind, key)
+);
+CREATE TABLE IF NOT EXISTS org_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, org_id TEXT NOT NULL, device_id TEXT NOT NULL, member_id TEXT NOT NULL,
+  ts INTEGER NOT NULL, type TEXT NOT NULL, severity TEXT NOT NULL, summary TEXT NOT NULL, data TEXT
+);
+CREATE INDEX IF NOT EXISTS org_events_ts ON org_events(org_id, ts);
+CREATE TABLE IF NOT EXISTS org_revoked (org_id TEXT NOT NULL, subject TEXT NOT NULL, revoked_at INTEGER NOT NULL, PRIMARY KEY (org_id, subject));
 `);
 
 type Row = Record<string, unknown>;

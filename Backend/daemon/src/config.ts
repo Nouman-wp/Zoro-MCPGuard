@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { ENV_PATH, chainConfig, dataDir } from '@zoro/blockchain/config';
 
 // Chain settings, explorer links and the shared data directory come from the Blockchain package.
-export { ENV_PATH, REPO_ROOT, ensAppUrl, etherscanBase, hashscan, isEnsConfigured, isHederaConfigured, mirrorBase } from '@zoro/blockchain/config';
+export { ENV_PATH, REPO_ROOT, ensAppUrl, etherscanBase, hashscan, hcsMessageUrl, isEnsConfigured, isHederaConfigured, mirrorBase } from '@zoro/blockchain/config';
 
 loadEnv({ path: ENV_PATH, quiet: true });
 
@@ -33,6 +33,8 @@ export const config = {
   publicUrl: env('ZORO_PUBLIC_URL', 'http://localhost:3000'),
   refreshIntervalSec: Number(env('ZORO_REFRESH_INTERVAL_SEC', '60')),
   approvalWaitSec: Number(env('ZORO_APPROVAL_WAIT_SEC', '45')),
+  /** How long the Attack Lab's scripted agent waits for a decision: long enough to complete a World ID Human Seal. */
+  labApprovalWaitSec: Number(env('ZORO_LAB_APPROVAL_WAIT_SEC', '90')),
   approvalWindowSec: Number(env('ZORO_APPROVAL_WINDOW_SEC', '900')),
   anchorIntervalSec: Number(env('ZORO_ANCHOR_INTERVAL_SEC', '900')),
   maxDefinitionBytes: Number(env('ZORO_MAX_DEFINITION_BYTES', '65536')),
@@ -57,7 +59,8 @@ export const config = {
     appId: env('WORLD_APP_ID'),
     rpId: env('WORLD_RP_ID'),
     signingKey: env('WORLD_SIGNING_KEY'),
-    environment: (env('WORLD_ENVIRONMENT', 'staging') as 'staging' | 'production'),
+    // staging: World ID Simulator; sandbox: the World ID Sandbox app (TestFlight / Play testing); production: World App.
+    environment: (env('WORLD_ENVIRONMENT', 'staging') as 'staging' | 'sandbox' | 'production'),
     verifyBase: env('WORLD_VERIFY_BASE', 'https://developer.world.org'),
     approvalTtlSec: Number(env('WORLD_APPROVAL_TTL_SEC', '300')),
   },

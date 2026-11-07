@@ -23,8 +23,15 @@ interface StartResponse {
   id: string;
   status: string;
   error?: string;
-  request?: { app_id: `app_${string}`; action: string; signal: string; environment: 'staging' | 'production'; rp_context: { rp_id: string; nonce: string; created_at: number; expires_at: number; signature: string }; expiresAt: number; testIdentities: boolean };
+  request?: { app_id: `app_${string}`; action: string; signal: string; environment: 'staging' | 'sandbox' | 'production'; rp_context: { rp_id: string; nonce: string; created_at: number; expires_at: number; signature: string }; expiresAt: number; testIdentities: boolean };
 }
+
+/** Where the approver completes World ID in each environment. */
+const WHERE: Record<string, string> = {
+  staging: 'the World ID Simulator (choose “Use the simulator” in the World ID window)',
+  sandbox: 'the World ID Sandbox app',
+  production: 'World App',
+};
 
 type Phase = 'summary' | 'starting' | 'awaiting' | 'validating' | 'done' | 'failed';
 
@@ -37,6 +44,8 @@ const OUTCOME_TEXT: Record<string, string> = {
   mismatched: 'The proof was bound to a different action. The action did not happen.',
   replay: 'This proof was already used. Approvals are single use; the action did not happen.',
   service_unavailable: 'The Human Seal service is unavailable. The action will not proceed; you can retry or deny.',
+  credential_unavailable: 'This person does not have World ID Proof of Human, so they cannot approve. The action did not happen; a verified person can still approve it, or you can deny it.',
+  insufficient_credential: 'The proof came from a weaker World ID credential than Proof of Human. Zoro refused it, the action did not happen, and a security incident was recorded.',
 };
 
 /**
@@ -63,7 +72,9 @@ export function HumanSealModal({ approval, open, onClose, mode = 'console', onDo
     if (!open || Widget) return;
     void import('@worldcoin/idkit').then((m) => {
       setWidget(() => m.IDKitRequestWidget as unknown as ComponentType<Record<string, unknown>>);
-      setPreset(() => m.orbLegacy as (o: { signal?: string }) => unknown);
+      // World ID 4.0 Proof of Human (one real, unique person), with the Orb proof as the 3.0 fallback. The daemon
+      // enforces this credential too, so a modified page cannot approve with a weaker one.
+      setPreset(() => m.proofOfHuman as (o: { signal?: string }) => unknown);
     });
   }, [open, Widget]);
 
@@ -105,12 +116,21 @@ export function HumanSealModal({ approval, open, onClose, mode = 'console', onDo
     }
   };
 
-  const cancel = async () => {
-    if (start?.id && mode === 'console') await api(`/api/console/human-seal/${start.id}/cancel`, { json: {} }).catch(() => undefined);
+  /** End the World ID flow without a proof; the daemon records why (cancelled, declined, or no Proof of Human). */
+  const abandon = async (code: string) => {
     setWidgetOpen(false);
-    setOutcome({ status: 'cancelled' });
+    let status = 'cancelled';
+    if (start?.id) {
+      const path = mode === 'lab' ? `${base}/human-seal/${start.id}/cancel` : `/api/console/human-seal/${start.id}/cancel`;
+      const r = await api<{ status?: string | null }>(path, { json: mode === 'lab' ? { approvalId: approval.id, code } : { code } }).catch(() => null);
+      if (r?.status) status = r.status;
+    }
+    setOutcome({ status, error: code === 'cancelled' ? null : `World ID: ${code.replace(/_/g, ' ')}` });
     setPhase('failed');
+    onDone?.();
   };
+
+  const cancel = () => abandon('cancelled');
 
   const deny = async () => {
     await api(mode === 'lab' ? `${base}/approvals/${approval.id}/deny` : `/api/console/approvals/${approval.id}/decide`, { json: mode === 'lab' ? {} : { decision: 'deny' } }).catch(() => undefined);
@@ -167,13 +187,16 @@ export function HumanSealModal({ approval, open, onClose, mode = 'console', onDo
             </p>
           )}
         </div>
+        <p className="text-[13px] text-mist">
+          Zoro asks for World ID <span className="text-quartz">Proof of Human</span>: proof that one real, unique person approved this exact action. It does not learn who you are.
+        </p>
         {(req?.testIdentities ?? true) && (
           <Notice tone="warn" title="Test identities">
-            {req ? `World ID ${req.environment} environment.` : 'This instance uses World ID’s staging environment.'} Verification uses test identities (the World ID Simulator) and is not production identity assurance.
+            {req ? `World ID ${req.environment} environment.` : 'This instance uses World ID’s staging environment.'} Verification uses test identities ({req?.environment === 'sandbox' ? 'the World ID Sandbox app' : 'the World ID Simulator'}) and is not production identity assurance.
           </Notice>
         )}
         {phase === 'starting' && <p className="text-ash">Requesting a signed World ID request from the Zoro daemon…</p>}
-        {phase === 'awaiting' && <p className="text-ash">Complete the verification in World App{req?.environment === 'staging' ? ' or the World ID Simulator' : ''}. Nothing happens until Zoro validates the proof on its server.</p>}
+        {phase === 'awaiting' && <p className="text-ash">Complete the verification in {WHERE[req?.environment ?? 'production'] ?? 'World App'}. Nothing happens until Zoro validates the proof on its server.</p>}
         {phase === 'validating' && <p className="text-ash">Validating the proof server-side with World’s verify API…</p>}
         {(phase === 'done' || phase === 'failed') && outcome && (
           <div className={`flex items-start gap-3 rounded-[10px] border p-3 ${phase === 'done' ? 'border-ok/30 bg-ok-bg' : 'border-danger/30 bg-danger-bg'}`}>
@@ -200,11 +223,9 @@ export function HumanSealModal({ approval, open, onClose, mode = 'console', onDo
           preset={preset({ signal: req.signal })}
           handleVerify={verify}
           onSuccess={() => setWidgetOpen(false)}
-          onError={() => {
-            if (phase === 'awaiting') {
-              setOutcome({ status: 'cancelled', error: 'Verification was not completed.' });
-              setPhase('failed');
-            }
+          onError={(code: string) => {
+            // failed_by_host_app: World returned a proof but Zoro's server refused it; verify() already shows why.
+            if (phase === 'awaiting' && code !== 'failed_by_host_app') void abandon(String(code || 'cancelled'));
           }}
         />
       )}

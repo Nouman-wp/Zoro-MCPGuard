@@ -3,10 +3,10 @@ import { streamSSE } from 'hono/streaming';
 import { CANONICALIZATION_VERSION, RULESET_VERSION, RULE_CATALOGUE, ensNamesFor, type VerdictPackage } from '@zoro/core';
 import { approvalRef, decideApproval, getApproval } from '../approvals';
 import { bus, type BusEvent } from '../bus';
-import { VERSION, config, ensAppUrl, etherscanBase, hashscan, isEnsConfigured, isHederaConfigured, mirrorBase } from '../config';
+import { VERSION, config, ensAppUrl, etherscanBase, hashscan, hcsMessageUrl, isEnsConfigured, isHederaConfigured, mirrorBase } from '../config';
 import { latestCorpusRuns } from '../corpus';
 import { all, get, json } from '../db';
-import { completeHumanSeal, startHumanSeal } from '../humanseal';
+import { abandonHumanSeal, completeHumanSeal, getHumanSeal, startHumanSeal } from '../humanseal';
 import { auditorAccount, auditorKeySource } from '../keys';
 import { lab } from '../lab/lab';
 import { badgeSvg } from '../publisher';
@@ -47,7 +47,7 @@ publicApi.get('/feed', (c) => {
   const lab = c.req.query('lab') === '1';
   const limit = Math.min(100, Number(c.req.query('limit') ?? 30));
   const rows = all<{ topic: string; seq: number; consensus_ts: string; payload: string; type: string; valid: number }>('SELECT topic, seq, consensus_ts, payload, type, valid FROM public_events WHERE lab = ? ORDER BY consensus_ts DESC LIMIT ?', lab, limit);
-  return c.json({ ledgerConfigured: isHederaConfigured(), events: rows.map((r) => ({ ...r, payload: json(r.payload, {}), url: `${hashscan('topic', r.topic)}/message/${r.seq}` })) });
+  return c.json({ ledgerConfigured: isHederaConfigured(), events: rows.map((r) => ({ ...r, payload: json(r.payload, {}), url: hcsMessageUrl(r.topic, r.consensus_ts) })) });
 });
 
 interface SealListRow {
@@ -89,7 +89,7 @@ const decorate = (s: SealListRow) => {
     links: {
       ens: s.ens_name && s.ens_status === 'written' ? ensAppUrl(s.ens_name) : null,
       ensTx: s.ens_tx ? `${etherscanBase()}/tx/${s.ens_tx}` : null,
-      ledger: s.ledger_topic && s.ledger_seq ? `${hashscan('topic', s.ledger_topic)}/message/${s.ledger_seq}` : null,
+      ledger: s.ledger_topic && s.ledger_seq ? hcsMessageUrl(s.ledger_topic, s.ledger_ts) : null,
       badge: s.badge_token && s.badge_serial ? `${hashscan('token', s.badge_token)}/${s.badge_serial}` : null,
     },
     disputes: get<{ n: number }>('SELECT COUNT(*) AS n FROM disputes WHERE fingerprint = ?', s.fingerprint)?.n ?? 0,
@@ -127,7 +127,7 @@ publicApi.get('/verdict/:fp', (c) => {
     seal: seal ? decorate(seal) : null,
     package: json(audit.package, null),
     definition: json(audit.definition, null),
-    ledger: events.map((e) => ({ ...e, payload: json(e.payload, {}), url: `${hashscan('topic', e.topic)}/message/${e.seq}` })),
+    ledger: events.map((e) => ({ ...e, payload: json(e.payload, {}), url: hcsMessageUrl(e.topic, e.consensus_ts) })),
   });
 });
 
@@ -240,10 +240,18 @@ publicApi.post('/lab/approvals/:id/human-seal', async (c) => {
   return c.json(startHumanSeal(a.digest, a.id, a.expires_at));
 });
 
+/** A lab Human Seal, only together with the lab approval it was started for. */
+const labSeal = (sid: string, approvalId: string) => {
+  const a = labApproval(approvalId);
+  const s = a ? getHumanSeal(sid) : null;
+  return a && s?.approval_id === a.id ? { a, s } : null;
+};
+
 publicApi.post('/lab/human-seal/:sid/complete', async (c) => {
   const body = await c.req.json<{ approvalId: string; result: Record<string, unknown> }>();
-  const a = labApproval(body.approvalId);
-  if (!a) return c.json({ error: 'not a lab approval' }, 404);
+  const found = labSeal(c.req.param('sid'), String(body.approvalId ?? ''));
+  if (!found) return c.json({ error: 'not a lab approval' }, 404);
+  const { a } = found;
   const r = await completeHumanSeal(c.req.param('sid'), body.result);
   if (r.status !== 'verified') return c.json(r, 400);
   try {
@@ -251,6 +259,12 @@ publicApi.post('/lab/human-seal/:sid/complete', async (c) => {
   } catch (e) {
     return c.json({ ...r, error: (e as Error).message }, 400);
   }
+});
+
+publicApi.post('/lab/human-seal/:sid/cancel', async (c) => {
+  const body = await c.req.json<{ approvalId?: string; code?: string }>().catch(() => ({} as { approvalId?: string; code?: string }));
+  if (!labSeal(c.req.param('sid'), String(body.approvalId ?? ''))) return c.json({ error: 'not a lab approval' }, 404);
+  return c.json({ ok: true, status: abandonHumanSeal(c.req.param('sid'), body.code ?? 'cancelled') });
 });
 
 const LAB_STREAM_TYPES = new Set(['lab', 'audit', 'incident', 'approval', 'ledger', 'seal', 'human_seal', 'outbox']);

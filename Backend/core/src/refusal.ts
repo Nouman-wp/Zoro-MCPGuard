@@ -18,6 +18,11 @@ const MESSAGES: Record<ReasonCategory, string> = {
   agent_restricted: 'this agent is not permitted to use this kind of tool',
   data_flow: 'this call would move data in a way the user’s policy requires approving',
   time_window: 'this tool is restricted outside its allowed hours',
+  irreversible: 'this action cannot be undone, so a person must approve it first',
+  transaction_risk: 'this transaction needs a verified person’s approval before it is signed',
+  new_capability: 'this agent gained a new ability, and its first use needs approval',
+  known_vulnerability: 'the server behind this tool has a known security vulnerability',
+  lockdown: 'Zoro lockdown is active: every agent tool call is frozen until a person lifts it',
 };
 
 export interface RefusalInput {

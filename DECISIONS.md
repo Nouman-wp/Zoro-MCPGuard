@@ -3,6 +3,48 @@
 Where Zoro deliberately differs from the project guide, or where the guide left a choice open, the decision and the
 reason are recorded here. Newest first.
 
+## 2026-11-06 — Organization identity is a World ID nullifier scoped to the organization
+
+**Decision.** A member is identified by the World ID nullifier for the action “join this organization”, not by an
+email, an SSO account or the AI account. Each person runs their own Zoro; one verified human is one member.
+
+**Why.** Teams share AI plans (Claude Team, Max) and switch clients, so the AI account cannot say who did what. The
+nullifier is stable per person per organization, cannot be registered twice, and reveals nothing about who the person
+is (invariant 5). Organizations see inventory only by default; incident titles only by opt-in; never per-call data.
+
+## 2026-11-06 — Organization credentials are signed tokens, so an ephemeral host heals itself
+
+**Decision.** Invites and member device tokens are HMAC-signed (key `ZORO_ORG_SECRET`, or derived from the auditor
+key). The host stores members, devices and inventory, but rebuilds them from the next device sync after a wipe.
+
+**Why.** The hosted backend runs on Render’s free plan with no persistent disk (see below). Stateful sessions would
+sign every member out on each redeploy. Limitation: removing a member is recorded in the host database, so on an
+ephemeral host a removed member could re-appear after a wipe until removed again; durable storage closes this.
+
+## 2026-11-06 — The Claude Code hook only tightens
+
+**Decision.** The hook answers deny, ask, or nothing. It never answers “allow”, so Claude Code’s own permission flow
+still applies. When Zoro is unreachable, the hook answers “ask” and says why.
+
+**Why.** Zoro must not grant more than the client would (least privilege), and must fail closed without failing
+silently (invariant 6): an unreachable Zoro neither blocks work invisibly nor lets actions through unchecked.
+
+## 2026-11-06 — Encoded instructions are withheld, not annotated
+
+**Decision.** Output Shield redacts any span that decodes to an instruction, even when policy says “annotate”.
+
+**Why.** An annotated copy still reaches the model, which can decode it. The decoder raises findings only when the
+decoded text matches an instruction, transfer or exfiltration pattern, so ordinary encoded data is never touched.
+
+## 2026-11-06 — npx servers run the version that was verified
+
+**Decision.** Servers launched through package runners are pinned to the exact version resolved and verified at first
+launch; later releases are verified and offered as updates that run only after acceptance. Unsafe packages do not
+launch.
+
+**Why.** “npx some-server” otherwise runs whatever was published most recently, so a malicious release would run
+with no change Zoro could see — the exact rug pull Zoro exists to stop.
+
 ## 2026-11-06 — Hosted backend on Render's free plan uses ephemeral storage (open)
 
 **Decision.** The hosted backend keeps its SQLite database in `/tmp/zoro-data`, which Render wipes on every restart,
@@ -32,7 +74,7 @@ visitor's local MCP client configurations, so onboarding finds nothing there. Th
 ## 2026-11-06 — CORS allows only the production web origins
 
 **Decision.** The API accepts cross-origin browser calls only from `ZORO_WEB_ORIGIN` and `ZORO_CORS_ORIGINS`
-(`https://zoro.caspx.in` and `https://zoro-seven-omega.vercel.app`). Preview domains are not listed.
+(`https://zoro-mcp-guard.vercel.app`). Preview domains are not listed.
 
 **Why.** The web app reaches the API through same-origin Next.js rewrites, which are proxied server-side, so neither
 production nor preview deploys need CORS. The list exists only for direct browser calls and is kept minimal.

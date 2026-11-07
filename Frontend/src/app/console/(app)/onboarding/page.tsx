@@ -6,6 +6,7 @@ import { Check, EyeOff, Lock, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, CardHeader, LinkButton, Notice, PageHeader, StateBadge, VerdictBadge, cx } from '@/components/ui';
 import { CapabilityChips } from '@/components/security';
 import { api, useApi } from '@/lib/api';
+import { BuiltinProtectionCard } from '@/components/console/builtin-protection';
 
 interface DetectedClient {
   id: string;
@@ -16,6 +17,7 @@ interface DetectedClient {
   routed: boolean;
   backup: string | null;
   error: string | null;
+  routable?: boolean;
 }
 
 const STEPS = ['Welcome', 'Permission', 'Your clients', 'Mode', 'Baseline audit', 'Posture', 'Human Seal & alerts', 'Done'];
@@ -77,6 +79,7 @@ export default function OnboardingPage() {
   return (
     <>
       <PageHeader title="Onboarding" description="Protect the MCP servers you already use in a few minutes, without editing any file." />
+      <BuiltinProtectionCard />
       <ol className="mb-6 flex flex-wrap gap-2" aria-label="Steps">
         {STEPS.map((s, i) => (
           <li key={s}>
@@ -133,6 +136,7 @@ export default function OnboardingPage() {
             clients.map((c) => (
               <Card key={c.id}>
                 <CardHeader title={c.label} subtitle={c.path} action={c.routed ? <Badge tone="ok">routed through Zoro</Badge> : <Badge tone="warn">unprotected</Badge>} />
+                {c.routable === false && <Notice tone="warn" className="mx-5 mt-4">Claude Code keeps these servers inside ~/.claude.json for one project (local scope), so Zoro cannot reroute them automatically. Re-add them with “claude mcp add --scope user”, then route them here — until then, calls to them bypass Zoro.</Notice>}
                 {c.error ? <Notice tone="danger" className="m-5">{c.error}</Notice> : (
                   <ul className="divide-y divide-inkline">
                     {c.servers.length === 0 && <li className="px-5 py-3 text-[13px] text-ash">No servers configured.</li>}
@@ -141,7 +145,7 @@ export default function OnboardingPage() {
                         <input
                           type="checkbox"
                           aria-label={`Protect ${s.name}`}
-                          disabled={s.status !== 'unprotected'}
+                          disabled={s.status !== 'unprotected' || c.routable === false}
                           checked={selected[c.id]?.has(s.name) ?? false}
                           onChange={(e) => setSelected((prev) => { const next = new Set(prev[c.id]); if (e.target.checked) next.add(s.name); else next.delete(s.name); return { ...prev, [c.id]: next }; })}
                         />

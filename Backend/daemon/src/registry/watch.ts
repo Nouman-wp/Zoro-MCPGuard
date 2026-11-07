@@ -12,7 +12,12 @@ import { readVersionRecords } from '@zoro/blockchain/ens';
 
 /** Auditor addresses whose ledger messages this gateway trusts: its own auditor plus any configured peers. */
 export const trustedAuditors = () =>
-  new Set([auditorAccount.address.toLowerCase(), ...(process.env.ZORO_TRUSTED_AUDITORS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)]);
+  new Set([
+    auditorAccount.address.toLowerCase(),
+    // The organization's auditor (a member device trusts its organization's public revocations).
+    ...[json<{ auditor?: string | null } | null>(getSetting('org_membership'), null)?.auditor ?? ''].filter(Boolean).map((a) => a.toLowerCase()),
+    ...(process.env.ZORO_TRUSTED_AUDITORS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
+  ]);
 
 async function validSignature(m: LedgerMessage) {
   if (!m.sig || !m.verdictHash || !m.auditor) return m.type === 'seal.revoked' && Boolean(m.auditor);
@@ -62,12 +67,20 @@ export async function pollLedger() {
   }
 }
 
+/** Exported for tests: apply one public ledger message to this gateway. */
+export const applyLedgerMessage = (m: LedgerMessage, valid: boolean, topic: string, seq: number) => applyEvent(m, valid, topic, seq);
+
 async function applyEvent(m: LedgerMessage, valid: boolean, topic: string, seq: number) {
   if (!m.fp) return;
   const trusted = m.auditor && trustedAuditors().has(m.auditor.toLowerCase());
   const local = get<{ status: string; verdict_hash: string; verdict: string }>('SELECT status, verdict_hash, verdict FROM seals WHERE fingerprint = ?', m.fp);
   if (m.type === 'seal.revoked' && trusted && local && local.status !== 'revoked') {
-    // Revocations reach this gateway through the ledger, independently of Zoro's own servers (FR-R7).
+    // Global kill switch: revocations reach this gateway through the ledger, independently of Zoro's own servers (FR-R7).
+    gateway.revoke(m.fp, m.reason ?? `Revoked on the public ledger (${topic} #${seq})`, 'ledger');
+  } else if (m.type === 'seal.revoked' && trusted && !local && get('SELECT 1 FROM live WHERE fingerprint = ?', m.fp)) {
+    // A version this gateway runs but never sealed itself (e.g. audited by the organization's auditor): record the
+    // public revocation as a revoked seal so the version is blocked here too.
+    run("INSERT OR IGNORE INTO seals(fingerprint, audit_id, verdict, status, revoked_at, revoke_reason, lab) VALUES(?, 'public-record', 'unsafe', 'active', NULL, NULL, ?)", m.fp, topic === config.hedera.labTopic);
     gateway.revoke(m.fp, m.reason ?? `Revoked on the public ledger (${topic} #${seq})`, 'ledger');
   }
   if ((m.type === 'verdict.issued' || m.type === 'verdict.reissued') && trusted && valid && local && m.verdictHash && local.verdict_hash !== m.verdictHash) {

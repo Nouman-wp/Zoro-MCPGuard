@@ -1,5 +1,5 @@
 import { EMAIL_RE } from '../sentinel/patterns';
-import type { Decision } from '../types';
+import { severityRank, type Decision } from '../types';
 import type { ArgumentConstraint, CallContext, Evaluation, Policy, ReasonCategory, Rule, TraceEntry } from './types';
 
 const RANK: Record<Decision, number> = { allow: 0, ask: 1, block: 2 };
@@ -97,6 +97,13 @@ export function evaluateCall(policy: Policy, ctx: CallContext): Evaluation {
   };
   const highRiskSeal = humanSealRequiredFor(policy, 'high_risk_ask');
 
+  // 0. Lockdown (panic button): checked first, and neither approvals, overrides nor observe mode lift it.
+  if (ctx.lockdown) {
+    note('lockdown', 'lockdown', 'block', `lockdown by ${ctx.lockdown.by}`);
+    const reason = `Zoro lockdown is active (frozen by ${ctx.lockdown.by} at ${new Date(ctx.lockdown.at).toISOString()}${ctx.lockdown.reason ? `: ${ctx.lockdown.reason}` : ''}). Every agent tool call is refused until it is lifted.`;
+    return { decision: 'block', enforcedDecision: 'block', decidingRuleId: 'lockdown', reason, reasonCategory: 'lockdown', humanSeal: false, observe: false, trace };
+  }
+
   // 1. Server mode
   if (ctx.serverMode === 'disabled') propose({ decision: 'block', ruleId: 'server-mode', reason: 'The server is disabled in Zoro.', category: 'server_disabled', humanSeal: false }, 'server_mode');
   else note('server-mode', 'server_mode', 'skip', `server mode: ${ctx.serverMode}`);
@@ -158,6 +165,43 @@ export function evaluateCall(policy: Policy, ctx: CallContext): Evaluation {
     const hit = ctx.capabilities.filter((c) => r.denyCapabilities.includes(c));
     if (hit.length) propose({ decision: r.action, ruleId: r.id, reason: `Agent “${ctx.agent}” may not use tools that can ${hit.join(', ').replace(/_/g, ' ')}.`, category: 'agent_restricted', humanSeal: false }, r.type);
     else note(r.id, r.type, 'skip', 'agent rule satisfied');
+  }
+
+  // 5b. New-power alarm: first use of a capability the agent gained since its last approval
+  for (const r of rulesOf(policy, 'new_power_alarm')) {
+    const hit = (ctx.pendingCapabilities ?? []).filter((c) => r.capabilities.includes(c));
+    if (hit.length) propose({ decision: 'ask', ruleId: r.id, reason: `New power: “${ctx.agent}” gained new abilities since it was last approved (${hit.join(', ').replace(/_/g, ' ')}). Their first use needs a person’s approval.`, category: 'new_capability', humanSeal: hit.some((c) => r.humanSealFor.includes(c)) }, r.type);
+  }
+
+  // 5c. Transaction decoder: say what a sign/send call does, and ask when it is risky
+  for (const r of rulesOf(policy, 'transaction_guard')) {
+    const tx = ctx.transaction;
+    if (!tx) continue;
+    const allowlisted = tx.recipient ? r.knownRecipients.some((k) => k.toLowerCase() === tx.recipient!.toLowerCase()) : false;
+    const large = tx.amountNumber !== null && tx.amountNumber > r.largeAmount;
+    const risky = tx.unlimited || tx.kind === 'contract_call' || tx.kind === 'approval_for_all' || large || (!allowlisted && !tx.knownRecipient);
+    if (risky) propose({ decision: r.action, ruleId: r.id, reason: `${tx.sentence}${tx.risks.length ? ` ${tx.risks.join(' ')}` : ''}`, category: 'transaction_risk', humanSeal: r.humanSeal }, r.type);
+    else note(r.id, r.type, 'allow', tx.sentence);
+  }
+
+  // 5d. Undo-impossible brake
+  let cooldownSeconds = 0;
+  for (const r of rulesOf(policy, 'irreversible_brake')) {
+    const sig = ctx.irreversible ?? [];
+    if (!sig.length) continue;
+    if (r.exempt.some((x) => { const [srv, tl] = x.split('/'); return matchName(srv ?? '*', ctx.serverName) && matchName(tl ?? '*', ctx.tool); })) {
+      note(r.id, r.type, 'skip', 'tool exempted from the irreversible brake');
+      continue;
+    }
+    cooldownSeconds = Math.max(cooldownSeconds, r.cooldownSeconds);
+    const s0 = sig[0];
+    propose({ decision: r.action, ruleId: r.id, reason: `Cannot be undone: ${s0.reason}${s0.blastRadius ? ` — ${s0.blastRadius}` : ''}. Exact action: ${s0.evidence.slice(0, 160)}`, category: 'irreversible', humanSeal: r.humanSeal }, r.type);
+  }
+
+  // 5e. Recall checker: known vulnerabilities in the server’s package
+  for (const r of rulesOf(policy, 'known_vulnerability')) {
+    const v = (ctx.vulnerabilities ?? []).filter((x) => severityRank(x.severity) >= severityRank(r.minSeverity));
+    if (v.length) propose({ decision: r.action, ruleId: r.id, reason: `The server’s package has ${v.length} known ${r.minSeverity}+ vulnerabilit${v.length === 1 ? 'y' : 'ies'} (${v.slice(0, 3).map((x) => x.id).join(', ')})${v[0].fixed ? `; fixed in ${v[0].fixed}` : ''}.`, category: 'known_vulnerability', humanSeal: false }, r.type);
   }
 
   // 6. High-impact capabilities always ask
@@ -234,7 +278,8 @@ export function evaluateCall(policy: Policy, ctx: CallContext): Evaluation {
     reason = ctx.overrideGranted ? `Override approved with a Human Seal. Original reason: ${reason}` : `Approved by a person. Original reason: ${reason}`;
   }
   if (observe && enforced !== 'allow') reason = `Observe mode — would have ${enforced === 'block' ? 'blocked' : 'asked'}: ${reason}`;
-  return { decision: final, enforcedDecision: enforced, decidingRuleId: deciding?.ruleId ?? null, reason, reasonCategory: category, humanSeal, observe, trace };
+  const cooling = enforced === 'allow' && (ctx.approvalGranted || ctx.overrideGranted) && cooldownSeconds > 0 && candidates.some((c) => c.category === 'irreversible');
+  return { decision: final, enforcedDecision: enforced, decidingRuleId: deciding?.ruleId ?? null, reason, reasonCategory: category, humanSeal, observe, cooldownSeconds: cooling ? cooldownSeconds : 0, trace };
 }
 
 export function shieldActionFor(policy: Policy, serverName: string, tool: string) {
@@ -288,5 +333,13 @@ export function describeRule(rule: Rule): string {
       return `Output Shield for ${scope(rule.server, rule.tool)}: ${rule.action} suspicious content in results.`;
     case 'high_impact_ask':
       return `Calls to tools that can ${rule.capabilities.join(', ').replace(/_/g, ' ')} always ask first${rule.humanSeal ? ', with a Human Seal' : ''}.`;
+    case 'irreversible_brake':
+      return `Actions that cannot be undone (deletes, drops, wipes, force-pushes, transfers) ${rule.action === 'block' ? 'are blocked' : 'always ask first'}${rule.humanSeal ? ', with a Human Seal' : ''}${rule.cooldownSeconds ? `, then wait ${rule.cooldownSeconds}s before running` : ''}.${rule.exempt.length ? ` Exempt: ${rule.exempt.join(', ')}.` : ''}`;
+    case 'transaction_guard':
+      return `Sign/send calls are decoded into plain words; unlimited approvals, unknown contracts, unknown recipients and amounts over ${rule.largeAmount}: ${rule.action}${rule.humanSeal ? ' with a Human Seal' : ''}.${rule.knownRecipients.length ? ` ${rule.knownRecipients.length} trusted recipient(s).` : ''}`;
+    case 'new_power_alarm':
+      return `When an agent gains a new ability (${rule.capabilities.join(', ').replace(/_/g, ' ')}), its first use asks${rule.humanSealFor.length ? `; ${rule.humanSealFor.join(', ').replace(/_/g, ' ')} need a Human Seal` : ''}.`;
+    case 'known_vulnerability':
+      return `Servers whose package has a known ${rule.minSeverity}+ vulnerability: ${rule.action}.`;
   }
 }

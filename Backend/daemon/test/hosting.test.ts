@@ -11,6 +11,8 @@ process.env.RENDER_EXTERNAL_HOSTNAME = 'zoro-backend.onrender.com';
 process.env.ZORO_EPHEMERAL_STORAGE = 'true';
 
 const { config, originAllowed } = await import('../src/config');
+// Imported with the file, not inside a test: a cold import of the gateway modules can take longer than one test's timeout.
+const { dependencies } = await import('../src/status');
 
 describe('hosted deployment settings', () => {
   it('allows only the Console origin and the configured extra origins', () => {
@@ -28,10 +30,20 @@ describe('hosted deployment settings', () => {
     expect(originAllowed('https://zoroXexample.com')).toBe(false);
   });
 
-  it('accepts the Render hostname on /mcp and reports ephemeral storage', async () => {
+  it('accepts the Render hostname on /mcp and reports ephemeral storage', () => {
     expect(config.allowedHosts).toContain('zoro-backend.onrender.com');
-    const { dependencies } = await import('../src/status');
     const storage = dependencies().find((d) => d.id === 'storage');
     expect(storage?.state).toBe('degraded');
+  });
+});
+
+describe('hosted client configuration', () => {
+  it('shows the public MCP address and a portable bridge command in Settings', async () => {
+    const { publicMcpUrl, settingsSnippet } = await import('../src/onboarding');
+    expect(publicMcpUrl()).toBe('https://zoro-backend.onrender.com/mcp');
+    const s = settingsSnippet('claude-desktop');
+    expect(s.command).toBe('node');
+    expect(s.args).toEqual(expect.arrayContaining(['--url', 'https://zoro-backend.onrender.com/mcp', '--client', 'claude-desktop']));
+    expect(s.args[0]).toContain('Backend/daemon/bin/zoro-bridge.mjs');
   });
 });

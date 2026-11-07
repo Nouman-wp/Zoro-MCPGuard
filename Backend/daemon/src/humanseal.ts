@@ -17,7 +17,9 @@ export type HumanSealStatus =
   | 'invalid'
   | 'mismatched'
   | 'replay'
-  | 'service_unavailable';
+  | 'service_unavailable'
+  | 'credential_unavailable'
+  | 'insufficient_credential';
 
 export interface HumanSealRow {
   id: string;
@@ -37,8 +39,19 @@ export interface HumanSealRow {
 
 export const usesTestIdentities = () => config.world.environment !== 'production';
 
-/** World ID binds a proof to an action string; Zoro's action string is derived from the action digest. */
-export const actionStringFor = (digest: string) => `zoro-human-seal:${digest.replace(/^0x/, '')}`;
+/**
+ * The credential Zoro asks for: World ID Proof of Human ("proof_of_human" in World ID 4.0, "orb" for the 3.0 fallback).
+ * Enforced here, not in the browser: the client picks the preset, so a modified client could ask for a weaker credential.
+ */
+export const ACCEPTED_CREDENTIALS: ReadonlySet<string> = new Set(['proof_of_human', 'orb']);
+
+/**
+ * World ID gives one person the same nullifier for the same action string, every time. An approval therefore gets its
+ * own action string: the same person can approve the same command again next week, and a second proof from one person
+ * on one approval is recognized as the same person. Organization joins (no approval) keep a stable action per
+ * organization, so a returning member is recognized. The exact action digest is bound through the signal.
+ */
+export const actionStringFor = (digest: string, approvalId?: string | null) => (approvalId ? `zoro-human-seal:${approvalId}` : `zoro-human-seal:${digest.replace(/^0x/, '')}`);
 /** The proof signal: a non-hex string, so it is always hashed as UTF-8 bytes. */
 export const signalFor = (digest: string) => `zoro-action:${digest}`;
 /** World's own signal hashing (hash_to_field of the signal), so the comparison matches World's verifier exactly. */
@@ -46,7 +59,7 @@ export const signalHashFor = (signal: string) => hashSignal(signal);
 
 export function startHumanSeal(digest: string, approvalId: string | null, windowEndsAt: number) {
   const id = randomUUID();
-  const action = actionStringFor(digest);
+  const action = actionStringFor(digest, approvalId);
   const now = Date.now();
   if (!isWorldConfigured()) {
     run('INSERT INTO human_seals(id, approval_id, digest, action_string, signal, status, created_at, expires_at, environment, error) VALUES(?,?,?,?,?,?,?,?,?,?)', id, approvalId, digest, action, signalFor(digest), 'service_unavailable', now, now, config.world.environment, 'World ID is not configured (WORLD_APP_ID, WORLD_RP_ID, WORLD_SIGNING_KEY)');
@@ -88,7 +101,8 @@ function finish(row: HumanSealRow, status: HumanSealStatus, error: string | null
       status, error, extra.nullifier ?? null, extra.response === undefined ? null : JSON.stringify(extra.response), status, 'verified', Date.now(), row.id);
   } catch (e) {
     if (String((e as Error).message).includes('UNIQUE')) {
-      run("UPDATE human_seals SET status = 'replay', error = ? WHERE id = ?", 'This World ID proof was already used for this action', row.id);
+      // The nullifier is kept server-side (never returned to clients) so an organization can recognize a returning member.
+      run("UPDATE human_seals SET status = 'replay', error = ?, response = ? WHERE id = ?", 'This World ID proof was already used for this action', JSON.stringify({ replayOf: extra.nullifier ?? null }), row.id);
       appendLog('human_seal', 'Human Seal rejected: replayed proof', { id: row.id }, row.approval_id);
       bus.emitEvent('human_seal', { id: row.id, status: 'replay', approvalId: row.approval_id });
       return 'replay' as const;
@@ -123,7 +137,7 @@ export async function completeHumanSeal(id: string, result: Record<string, unkno
     raiseIncident({ type: 'human_seal_invalid', severity: 'high', title: 'Human Seal proof signal mismatch', summary: 'A World ID proof whose signal does not match the action digest was submitted.', groupKey: `hs-signal:${row.digest}`, evidence: { sealId: row.id } });
     return { status: st, error: 'signal mismatch', nullifier: null };
   }
-  const environment = config.world.environment === 'production' ? 'production' : 'staging';
+  const environment = config.world.environment;
   let resp: Response;
   try {
     resp = await fetch(`${config.world.verifyBase}/api/v4/verify/${encodeURIComponent(config.world.rpId)}`, {
@@ -145,16 +159,35 @@ export async function completeHumanSeal(id: string, result: Record<string, unkno
   }
   if (body.environment && body.environment !== environment) return { status: finish(row, 'invalid', `Unexpected environment ${String(body.environment)}`, { response: body }), error: 'wrong environment', nullifier: null };
   const results = Array.isArray(body.results) ? (body.results as Record<string, unknown>[]) : [];
+  // Which credential World actually verified: its own per-credential results first, else the forwarded responses.
+  const verified = (results.length ? results.filter((r) => r.success !== false) : responses).map((r) => String(r.identifier ?? '')).filter(Boolean);
+  const credential = verified.find((x) => ACCEPTED_CREDENTIALS.has(x)) ?? null;
+  if (!credential) {
+    const st = finish(row, 'insufficient_credential', `World verified ${verified.length ? `a ${verified.join(', ')} credential` : 'no recognizable credential'}; a Human Seal needs World ID Proof of Human`, { response: { success: true, credentials: verified } });
+    raiseIncident({ type: 'human_seal_invalid', severity: 'medium', title: 'Human Seal proof used a weaker credential', summary: `A valid World ID proof was submitted for an approval, but from the ${verified.join(', ') || 'unknown'} credential instead of Proof of Human. Zoro's own client never asks for that, so the request may have been altered. The action did not proceed.`, groupKey: `hs-credential:${row.digest}`, evidence: { sealId: row.id, credentials: verified } });
+    return { status: st, error: 'insufficient credential', nullifier: null };
+  }
   const rawNullifier = (body.nullifier as string | undefined) ?? (results.find((r) => r.success)?.nullifier as string | undefined) ?? (responses[0]?.nullifier as string | undefined) ?? null;
   const nullifier = rawNullifier ? BigInt(rawNullifier).toString(16) : null;
   if (!nullifier) return { status: finish(row, 'invalid', 'No nullifier in verification response', { response: body }), error: 'no nullifier', nullifier: null };
-  const st = finish(row, 'verified', null, { nullifier, response: { success: true, environment: body.environment ?? environment, created_at: body.created_at ?? null } });
+  const st = finish(row, 'verified', null, { nullifier, response: { success: true, environment: body.environment ?? environment, created_at: body.created_at ?? null, credential, protocol: result.protocol_version ?? null } });
   return { status: st, error: st === 'verified' ? null : 'replay', nullifier: st === 'verified' ? nullifier : null };
 }
 
-export function cancelHumanSeal(id: string) {
+/** IDKit error codes meaning the person does not hold the requested credential (World ID error-codes reference). */
+const CREDENTIAL_UNAVAILABLE = new Set(['credential_unavailable', 'world_id_4_not_available', 'world_id_3_not_available']);
+
+/**
+ * The World ID flow ended without a proof: the approver cancelled, declined in World App, or does not hold Proof of
+ * Human. Recorded so the audit log shows why; the approval itself stays pending (another verified person may approve
+ * it, or someone denies it) and the action does not run.
+ */
+export function abandonHumanSeal(id: string, code?: string | null) {
   const row = get<HumanSealRow>('SELECT * FROM human_seals WHERE id = ?', id);
-  if (row && row.status === 'awaiting_verification') finish(row, 'cancelled', 'Cancelled by the approver');
+  if (!row || row.status !== 'awaiting_verification') return row?.status ?? null;
+  const c = String(code ?? 'cancelled').replace(/[^\w-]/g, '').slice(0, 60) || 'cancelled';
+  if (CREDENTIAL_UNAVAILABLE.has(c)) return finish(row, 'credential_unavailable', `This person does not hold World ID Proof of Human (${c}), so they cannot approve. The action did not proceed.`);
+  return finish(row, 'cancelled', c === 'cancelled' ? 'Cancelled by the approver' : c === 'user_rejected' || c === 'verification_rejected' ? 'Declined in World App' : `World ID flow ended: ${c}`);
 }
 
 export function markExecuted(id: string) {

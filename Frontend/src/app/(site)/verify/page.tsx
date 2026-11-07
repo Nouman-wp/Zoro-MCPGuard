@@ -173,7 +173,8 @@ function VerifyInner() {
       } else {
         set('ledger', { state: 'running' });
         const msg = await fetch(`${ctx.hedera.mirror}/api/v1/topics/${topic}/messages/${seq}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-        const url = `https://hashscan.io/${ctx.hedera.network}/topic/${topic}/message/${seq}`;
+        // HashScan has no page per topic message: it shows a message as the transaction at its consensus timestamp.
+        const url = msg?.consensus_timestamp ? `https://hashscan.io/${ctx.hedera.network}/transaction/${msg.consensus_timestamp}` : `https://hashscan.io/${ctx.hedera.network}/topic/${topic}`;
         if (!msg) set('ledger', { state: 'fail', detail: `Message ${topic} #${seq} was not found on the mirror node.`, source: { label: 'HashScan', href: url } });
         else {
           const body = JSON.parse(atob(msg.message)) as { fp?: string; verdict?: string; verdictHash?: string };

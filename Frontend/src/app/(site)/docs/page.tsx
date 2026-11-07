@@ -7,6 +7,9 @@ import { DocsNav } from '@/components/docs-nav';
 
 export const metadata = { title: 'Documentation' };
 
+const SITE_URL = 'https://zoro-mcp-guard.vercel.app/';
+const REPO_URL = 'https://github.com/Nouman-wp/Zoro-MCPGuard.git';
+
 /** Class joiner (the shared cx lives in a client module, and this page renders on the server). */
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -89,7 +92,7 @@ const PARTS: { icon: ReactNode; tone: string; name: string; plain: string; detai
   { icon: <Fingerprint />, tone: 'bg-lavender', name: 'Sentinel', plain: 'The inspector that checks each new tool version.', detail: <>Rule-based checks, a diff against the last sealed version, AI review (two configurations for high-impact tools), sandbox detonation for Lab servers, and a signed (EIP-191) attestation over the verdict.</> },
   { icon: <Landmark />, tone: 'bg-mint', name: 'Registry (ENS)', plain: 'A public name book where verdicts are written.', detail: <>ENSv2 on Sepolia. Each server gets its own Permissioned Resolver; only the Auditor may write verdicts. Version names resolve by wildcard and <C>current</C> points at the live one.</> },
   { icon: <ScrollText />, tone: 'bg-peach', name: 'Ledger (Hedera)', plain: 'A public diary with time stamps nobody can change.', detail: <>Hedera Consensus Service topics for verdicts and Lab records, Merkle commitments over your local audit log, and badge tokens that are burned when a seal is revoked.</> },
-  { icon: <UserCheck />, tone: 'bg-lavender', name: 'Human Seal (World ID)', plain: 'Proof that a real person approved one exact action.', detail: <>World ID proofs bound to a digest of the action, verified on the server, usable once per action.</> },
+  { icon: <UserCheck />, tone: 'bg-lavender', name: 'Human Seal (World ID)', plain: 'Proof that a real person approved one exact action.', detail: <>World ID 4.0 Proof of Human, requested with relying-party signatures, bound to one approval and its action digest, verified on the server (including the credential), usable once.</> },
 ];
 
 const POLICY = ['Server mode', 'Seal & trust chain', 'Verdict handling', 'Tool permissions', 'Agent rules', 'High-impact asks', 'Argument limits', 'Rate limits', 'Time windows', 'Data flows'];
@@ -102,6 +105,13 @@ export default function DocsPage() {
         <PageIntro eyebrow="Documentation" a="Running Zoro" />
         <p className="mt-5 text-[18px] leading-[1.65] text-mist">
           Zoro stands between AI agents and the tools they use. Before an agent touches a tool, Zoro checks that the tool is exactly the version that was examined and approved. If anything changed, the call does not happen, you see what changed and why it matters, and the event goes into a public record.
+        </p>
+        <p className="mt-4 rounded-[12px] border border-sapphire bg-lavender-soft px-4 py-3 text-[15.5px] leading-[1.6] text-on-pastel">
+          <span className="font-semibold">Try it live, with nothing to install: </span>
+          <a className="font-semibold underline underline-offset-2" href={SITE_URL}>
+            {SITE_URL}
+          </a>
+          . Launch an attack in the <A href="/lab">Attack Lab</A>, then check the verdict on <A href="/verify">Verify</A>.
         </p>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
@@ -122,7 +132,7 @@ export default function DocsPage() {
             <P>
               You need Node.js 22.13 or newer (24 recommended) and pnpm 10 (<C>npm i -g pnpm</C>). If <C>pnpm</C> is not found after that, <C>npx pnpm@10 &lt;command&gt;</C> works too.
             </P>
-            <CodeBlock className="mt-4" language="shell" filename="terminal" code={['git clone https://github.com/Nouman-wp/Zoro-MCPGuard zoro && cd zoro', 'pnpm install', 'cp .env.example .env        # optional: keys for the AI layer, ENSv2, Hedera and World ID', 'pnpm dev                    # daemon on :7420, web on :3000'].join('\n')} />
+            <CodeBlock className="mt-4" language="shell" filename="terminal" code={[`git clone ${REPO_URL} zoro && cd zoro`, 'pnpm install', 'cp .env.example .env        # optional: keys for the AI layer, ENSv2, Hedera and World ID', 'pnpm dev                    # daemon on :7420, web on :3000'].join('\n')} />
             <Steps
               items={[
                 { title: 'Sign in to your Console', body: <>The daemon prints a link when it starts (<C>Console login : http://localhost:3000/console/login?token=…</C>). Open it. The token is also saved as <C>console.token</C> in Zoro’s data folder: <C>%LOCALAPPDATA%\Zoro</C> on Windows, <C>~/Library/Application Support/Zoro</C> on macOS, <C>~/.local/share/zoro</C> on Linux.</> },
@@ -180,7 +190,7 @@ export default function DocsPage() {
                 'WORLD_APP_ID=app_…',
                 'WORLD_RP_ID=rp_…',
                 'WORLD_SIGNING_KEY=…',
-                'WORLD_ENVIRONMENT=staging      # staging = test identities (World ID Simulator)',
+                'WORLD_ENVIRONMENT=staging      # staging = World ID Simulator; sandbox = World ID Sandbox app; production = World App',
               ].join('\n')}
             />
           </Section>
@@ -245,7 +255,7 @@ export default function DocsPage() {
                 ['Private data leaking to another server', 'The data-flow guard tracks where data comes from and holds risky flows for a person.'],
                 ['A tool returns instructions in its output', 'Output Shield marks, redacts or blocks them.'],
                 ['Forged seals or a compromised auditor', 'Role-restricted registry writes, signatures, ledger cross-checks and public disputes.'],
-                ['Reusing an approval for something else', 'Human Seals are tied to one exact action and work once.'],
+                ['Reusing or downgrading an approval', 'Human Seals are tied to one approval and its exact action, work once, and must be a World ID Proof of Human, checked on the server, not in the browser.'],
               ].map(([a, z], i) => (
                 <div key={a} className={cx('grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-[1fr_1.2fr] sm:gap-6', i > 0 && 'border-t border-obsidian')}>
                   <p className="text-[15px] font-semibold text-quartz">{a}</p>
@@ -273,7 +283,7 @@ export default function DocsPage() {
                 'ENS and Hedera receive information about tools (fingerprints, verdicts, hashes, signatures), never your prompts, arguments, results, files or identity.',
                 'Your own activity is anchored only as Merkle roots over your local audit log; individual calls are never written onchain.',
                 'The AI layer receives public tool definitions. Ask Zoro sends your question and the records it reads to the AI provider only when you use it.',
-                'World ID receives the action digest as the proof signal, never the action itself, and Zoro stores only the nullifier for that action.',
+                'World ID receives the action digest as the proof signal, never the action itself, and Zoro stores only the nullifier for that approval.',
                 'Exposure reports are generated entirely on your machine.',
               ]}
             />

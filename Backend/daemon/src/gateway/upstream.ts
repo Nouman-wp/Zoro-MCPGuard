@@ -12,6 +12,7 @@ import { bus } from '../bus';
 import { VERSION, config } from '../config';
 import { json, run } from '../db';
 import { remoteArtifact, stdioArtifact, type ArtifactIdentity } from './artifact';
+import { pinnedArgs } from '../pins';
 
 export interface ServerRow {
   id: string;
@@ -103,7 +104,8 @@ export class Upstream {
       const headers = json<Record<string, string>>(this.row.headers, {});
       return { transport: new StreamableHTTPClientTransport(new URL(this.row.url!), { requestInit: { headers } }), artifact: null };
     }
-    const args = json<string[]>(this.row.args, []);
+    // npx/pnpx/bunx/dlx servers run the exact version Zoro verified and pinned, never "whatever is newest today".
+    const { args } = await pinnedArgs(this.row.id, this.row.command!, json<string[]>(this.row.args, []));
     const env = { ...getDefaultEnvironment(), ...json<Record<string, string>>(this.row.env, {}) };
     const t = new StdioClientTransport({ command: this.row.command!, args, env, cwd: this.row.cwd ?? undefined, stderr: 'pipe' });
     t.stderr?.on('data', (d: Buffer) => {

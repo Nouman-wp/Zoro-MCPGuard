@@ -19,9 +19,10 @@ import {
 } from './patterns';
 import { codePointLabel, decodeTagRuns, findHiddenChars, findMixedScriptWords, foldConfusables } from '../unicode';
 import { levenshtein, walkStrings, type StringField } from '../text';
+import { describeEncoded, findEncodedInstructions } from '../decode';
 import type { Capability, CapabilityEvidence, Definition, DefinitionKind, Finding, FindingCategory, Severity } from '../types';
 
-export const RULESET_VERSION = 'zoro-rules/1.0.0';
+export const RULESET_VERSION = 'zoro-rules/1.1.0';
 
 export interface RuleContext {
   kind: DefinitionKind;
@@ -53,6 +54,7 @@ export const RULE_CATALOGUE: RuleInfo[] = [
   { id: 'ZR-008', category: 'exfiltration_channel', title: 'Embedded destinations', description: 'URLs, email addresses, IP addresses or wallet addresses embedded in model-visible text, especially next to send/copy verbs.' },
   { id: 'ZR-009', category: 'schema_smuggling', title: 'Schema anomalies', description: 'Destinations or instructions hidden in defaults, constants or enums; oversized descriptions; malformed schemas.' },
   { id: 'ZR-010', category: 'identity_spoofing', title: 'Typosquats and name collisions', description: 'Server names one or two edits away from a well-known server; tool names that collide across servers.' },
+  { id: 'ZR-012', category: 'encoded_instruction', title: 'Encoded instructions', description: 'Text hidden in Morse, base64, hex, URL encoding, ROT13, reversed text, leetspeak or invisible tags that decodes (up to two levels deep) to an instruction, a transfer order or an exfiltration request.' },
   { id: 'ZR-011', category: 'capability_mismatch', title: 'Capability mismatch', description: 'A tool whose stated purpose (weather, time, maths) does not need the dangerous capabilities its schema grants.' },
 ];
 
@@ -188,6 +190,16 @@ export function runDeterministicRules(ctx: RuleContext): Finding[] {
           'Use plain text in descriptions.', f, m.index!, m.index! + m[0].length, 'medium'),
       );
     }
+  }
+
+  // ZR-012 encoded instructions: decode, then re-run the instruction and exfiltration rules on the decoded text
+  for (const f of fields) {
+    if (isSchemaMetaPointer(f.pointer)) continue;
+    for (const e of findEncodedInstructions(f.value))
+      findings.push(
+        mk('ZR-012', 'encoded_instruction', e.severity, 'Encoded instruction', `Hidden by encoding: ${describeEncoded(e)}. A model can read it; a person reviewing the text cannot.`,
+          'Remove encoded text from model-visible fields.', f, e.span.start, e.span.end),
+      );
   }
 
   // ZR-004 instructions aimed at the model, ZR-005 auditor manipulation, ZR-006 generic cross-tool phrasing

@@ -6,7 +6,7 @@ import { all, get, json, nextSeq, run } from './db';
 import { addIncidentEvent, notify } from './incidents';
 import { getHumanSeal, markExecuted } from './humanseal';
 
-export type ApprovalKind = 'tool_call' | 'override' | 'policy_change' | 'release' | 'namespace_claim' | 'dispute' | 'danger_zone' | 'mode_change' | 'artifact_release';
+export type ApprovalKind = 'tool_call' | 'override' | 'policy_change' | 'release' | 'namespace_claim' | 'dispute' | 'danger_zone' | 'mode_change' | 'artifact_release' | 'lockdown_release' | 'package_update';
 export type ApprovalStatus = 'pending' | 'approved' | 'executed' | 'denied' | 'cancelled' | 'expired' | 'invalid';
 
 export interface ApprovalRow {
@@ -110,7 +110,7 @@ export async function decideApproval(id: string, decision: 'approve' | 'deny', a
   }
   if (a.human_seal) {
     const seal = humanSealId ? getHumanSeal(humanSealId) : null;
-    if (!seal || seal.status !== 'verified' || seal.digest !== a.digest) throw new Error('A verified Human Seal bound to this exact action is required');
+    if (!seal || seal.status !== 'verified' || seal.digest !== a.digest || (seal.approval_id && seal.approval_id !== a.id)) throw new Error('A verified Human Seal bound to this exact action is required');
     const ev = evidenceOf(a);
     const prior = ev.approverNullifiers ?? [];
     if (seal.nullifier && prior.includes(seal.nullifier)) throw new Error('This verified person has already approved this action');

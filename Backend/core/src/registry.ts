@@ -98,7 +98,7 @@ export function parseLedgerMessage(raw: string): LedgerMessage | null {
 // --- Human Seal action digests (§4.9) ---
 
 export interface SealedAction {
-  kind: 'tool_call' | 'override' | 'policy_change' | 'namespace_claim' | 'dispute' | 'release' | 'danger_zone';
+  kind: 'tool_call' | 'override' | 'policy_change' | 'namespace_claim' | 'dispute' | 'release' | 'danger_zone' | 'lockdown_release' | 'org_join';
   /** request identifier that makes each action unique, even if otherwise identical */
   requestId: string;
   agent?: string;

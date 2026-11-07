@@ -7,6 +7,16 @@ import { HTTPException } from 'hono/http-exception';
 import './actions';
 import './disputes';
 import './publisher';
+import './lockdown';
+import { featuresApi } from './api/features';
+import { handleHook } from './hooks';
+import { hostJoinComplete, hostJoinStart, hostSync, memberSync } from './org';
+import { checkPinnedUpdates } from './pins';
+import { rateLimit } from './ratelimit';
+import { checkAllServers } from './recall';
+import { scanPermitted } from './onboarding';
+import { startWatchdog, sweepWatchdog } from './watchdog';
+import { gatewayToken } from './gateway/http';
 import { consoleApi } from './api/console';
 import { publicApi } from './api/public';
 import { startAnchoring } from './anchors';
@@ -37,6 +47,12 @@ app.get('/healthz', (c) => c.json({ ok: true, version: VERSION, uptimeSec: Math.
 // The web app reaches the API through same-origin rewrites; direct browser calls are allowed only from its own origins.
 const allowOrigin = (origin: string) => (originAllowed(origin) ? origin : null);
 app.use('/api/public/*', cors({ origin: allowOrigin, allowMethods: ['GET', 'POST'] }));
+// Abuse control for public endpoints: Lab runs spend AI quota and testnet funds, lookups hit the database.
+app.use('/api/public/lab/start', rateLimit('lab-start', 6, 60));
+app.use('/api/public/lab/reset', rateLimit('lab-reset', 6, 60));
+app.use('/api/public/*', rateLimit('public', 240, 60));
+app.use('/api/org/v1/*', rateLimit('org', 60, 60));
+app.use('/api/auth/check', rateLimit('auth', 10, 60));
 app.use('/api/console/*', cors({ origin: allowOrigin, credentials: true, allowHeaders: ['content-type', 'x-zoro-console-token'] }));
 
 const safeEqual = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -60,6 +76,39 @@ app.onError((err, c) => {
 app.get('/', (c) => c.json({ name: 'zoro-daemon', version: VERSION, console: `${config.webOrigin}/console`, mcp: `http://${config.host}:${config.port}/mcp` }));
 app.route('/api/public', publicApi);
 app.route('/api/console', consoleApi);
+app.route('/api/console', featuresApi);
+
+/** Claude Code PreToolUse hook: built-in tools, package and skill installs (authenticated with the gateway token). */
+app.post('/hooks/claude-code', async (c) => {
+  const token = c.req.header('x-zoro-gateway-token') ?? c.req.query('token') ?? '';
+  if (!safeEqual(token, gatewayToken)) return c.json({ error: 'Gateway token required' }, 401);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  return c.json(await handleHook(body));
+});
+
+// Organization server: members join with a World ID proof and sync their inventory. Server-to-server, no browser CORS.
+app.post('/api/org/v1/join/start', async (c) => {
+  const b = await c.req.json<{ invite?: string }>().catch(() => ({} as { invite?: string }));
+  try {
+    return c.json(hostJoinStart(String(b.invite ?? '')));
+  } catch (e) {
+    return c.json({ error: (e as Error).message }, 400);
+  }
+});
+app.post('/api/org/v1/join/complete', async (c) => {
+  const b = await c.req.json<{ invite: string; sealId: string; result: Record<string, unknown>; name: string; device: Record<string, string> }>();
+  try {
+    return c.json(await hostJoinComplete({ invite: b.invite, sealId: b.sealId, result: b.result ?? {}, name: b.name ?? '', device: b.device ?? {} }));
+  } catch (e) {
+    return c.json({ error: (e as Error).message }, 400);
+  }
+});
+app.post('/api/org/v1/sync', async (c) => {
+  const auth = c.req.header('authorization') ?? '';
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const r = hostSync(auth.replace(/^Bearer\s+/i, ''), body);
+  return r.status === 200 ? c.json(r.body) : c.json({ error: r.error }, r.status);
+});
 app.all('/mcp', (c) => handleMcp(c.req.raw));
 app.post('/api/auth/check', async (c) => {
   const { token } = await c.req.json<{ token: string }>().catch(() => ({ token: '' }));
@@ -93,6 +142,19 @@ async function boot() {
   every(config.hedera.pollSec * 1000, pollLedger);
   every(30_000, checkRegistry);
   every(5 * 60_000, watchForBypass);
+  // Settings watchdog (needs the user's permission to read client configs), organization sync, supply-chain checks.
+  if (scanPermitted()) startWatchdog();
+  every(30_000, () => {
+    if (scanPermitted()) {
+      startWatchdog();
+      sweepWatchdog();
+    }
+  });
+  every(60_000, memberSync);
+  every(6 * 3_600_000, checkPinnedUpdates);
+  every(12 * 3_600_000, checkAllServers);
+  setTimeout(() => void memberSync(), 5_000).unref();
+  setTimeout(() => void checkAllServers().catch(() => undefined), 60_000).unref();
   void pollLedger();
 
   serve({ fetch: app.fetch, port: config.port, hostname: config.host }, (info) => {
