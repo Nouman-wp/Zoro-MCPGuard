@@ -22,7 +22,7 @@ import { askEnabled, askZoro } from '../ask';
 import { verifyLogChain } from '../auditlog';
 import { approvalRef, cancelApproval, decideApproval, getApproval, type ApprovalRow } from '../approvals';
 import { bus, type BusEvent } from '../bus';
-import { config, ensAppUrl, etherscanBase, hashscan, isEnsConfigured, isHederaConfigured, isWorldConfigured } from '../config';
+import { config, ensAppUrl, etherscanBase, hashscan, hcsMessageUrl, isEnsConfigured, isHederaConfigured, isWorldConfigured } from '../config';
 import { providerName } from '../llm';
 import { measureDeterministic, measureWithAi } from '../corpus';
 import { all, get, getSetting, json, run, setSetting } from '../db';
@@ -65,7 +65,7 @@ consoleApi.get('/search', (c) => {
   for (const r of all<{ fingerprint: string; name: string; server_label: string; ens_name: string | null }>('SELECT fingerprint, name, server_label, ens_name FROM seals WHERE lab = 0 AND (fingerprint LIKE ? OR ens_name LIKE ?) LIMIT 10', like, like)) results.push({ type: 'fingerprint', label: r.ens_name ?? r.fingerprint, detail: `${r.server_label}/${r.name}`, href: `/verify?q=${r.fingerprint}` });
   const incSeq = s.match(/^inc-?(\d+)$/i);
   for (const r of all<{ id: string; seq: number; title: string }>('SELECT id, seq, title FROM incidents WHERE lab = 0 AND (lower(title) LIKE ? OR seq = ?) LIMIT 10', like, incSeq ? Number(incSeq[1]) : -1)) results.push({ type: 'incident', label: incidentRef(r.seq), detail: r.title, href: `/console/incidents/${r.id}` });
-  for (const r of all<{ topic: string; seq: number; type: string; fp: string | null }>("SELECT topic, seq, type, fp FROM public_events WHERE (topic || '#' || seq) LIKE ? LIMIT 5", like)) results.push({ type: 'ledger', label: `${r.topic} #${r.seq}`, detail: r.type, href: `${hashscan('topic', r.topic)}/message/${r.seq}` });
+  for (const r of all<{ topic: string; seq: number; consensus_ts: string; type: string; fp: string | null }>("SELECT topic, seq, consensus_ts, type, fp FROM public_events WHERE (topic || '#' || seq) LIKE ? LIMIT 5", like)) results.push({ type: 'ledger', label: `${r.topic} #${r.seq}`, detail: r.type, href: hcsMessageUrl(r.topic, r.consensus_ts) });
   for (const r of all<{ id: string; tool: string; agent: string }>('SELECT id, tool, agent FROM calls WHERE lab = 0 AND id LIKE ? LIMIT 5', `${s}%`)) results.push({ type: 'call', label: r.id.slice(0, 8), detail: `${r.agent} → ${r.tool}`, href: `/console/traffic/${r.id}` });
   return c.json({ results });
 });
@@ -96,7 +96,7 @@ consoleApi.get('/overview', (c) => {
     approvals: approvals.map((a) => ({ ...a, ref: approvalRef(a.seq) })),
     quarantine: quarantine.map((x) => ({ ...x, audit: get<{ id: string; status: string; layers: string }>('SELECT id, status, layers FROM audits WHERE fingerprint = ? ORDER BY created_at DESC LIMIT 1', x.fingerprint) })),
     posture,
-    publicEvents: publicEvents.map((e) => ({ ...e, payload: json(e.payload, {}), url: `${hashscan('topic', e.topic)}/message/${e.seq}` })),
+    publicEvents: publicEvents.map((e) => ({ ...e, payload: json(e.payload, {}), url: hcsMessageUrl(e.topic, e.consensus_ts) })),
     clients: all<{ client: string; path: string; routed: number }>('SELECT client, path, routed FROM client_configs'),
   });
 });
@@ -218,7 +218,7 @@ consoleApi.get('/tools/:serverId/:kind/:name', (c) => {
     registry: st.registry,
     definition: def,
     sealedDefinition: sealedDef,
-    seal: seal ? { ...seal, ens_check: json(seal.ens_check, null), links: { ens: seal.ens_name && seal.ens_status === 'written' ? ensAppUrl(String(seal.ens_name)) : null, ensTx: seal.ens_tx ? `${etherscanBase()}/tx/${seal.ens_tx}` : null, ledger: seal.ledger_topic ? `${hashscan('topic', String(seal.ledger_topic))}/message/${seal.ledger_seq}` : null, badge: seal.badge_token ? `${hashscan('token', String(seal.badge_token))}/${seal.badge_serial}` : null } } : null,
+    seal: seal ? { ...seal, ens_check: json(seal.ens_check, null), links: { ens: seal.ens_name && seal.ens_status === 'written' ? ensAppUrl(String(seal.ens_name)) : null, ensTx: seal.ens_tx ? `${etherscanBase()}/tx/${seal.ens_tx}` : null, ledger: seal.ledger_topic ? hcsMessageUrl(String(seal.ledger_topic), seal.ledger_ts as string | null) : null, badge: seal.badge_token ? `${hashscan('token', String(seal.badge_token))}/${seal.badge_serial}` : null } } : null,
     package: pkg,
     auditId: audit?.id ?? null,
     versions,
@@ -329,7 +329,7 @@ consoleApi.get('/incidents/:id', (c) => {
     events: listIncidentEvents(inc.id),
     verdict: pkg,
     diff: inc.fingerprint ? { serverId: inc.server_id, kind: pkg?.kind ?? 'tool', a: prevFp, b: inc.fingerprint } : null,
-    seal: seal ? { ...seal, links: { ens: seal.ens_name && seal.ens_status === 'written' ? ensAppUrl(String(seal.ens_name)) : null, ledger: seal.ledger_topic ? `${hashscan('topic', String(seal.ledger_topic))}/message/${seal.ledger_seq}` : null } } : null,
+    seal: seal ? { ...seal, links: { ens: seal.ens_name && seal.ens_status === 'written' ? ensAppUrl(String(seal.ens_name)) : null, ledger: seal.ledger_topic ? hcsMessageUrl(String(seal.ledger_topic), seal.ledger_ts as string | null) : null } } : null,
     calls,
     approvals,
     server: inc.server_id ? get('SELECT id, name, label, mode FROM servers WHERE id = ?', inc.server_id) : null,
@@ -576,7 +576,13 @@ consoleApi.post('/publisher/releases', async (c) => {
 
 // ---------- disputes ----------
 
-consoleApi.get('/disputes', (c) => c.json(listDisputes().map((d) => ({ ...d, ref: `DSP-${d.seq}`, ledger_open: json(d.ledger_open, null), ledger_resolve: json(d.ledger_resolve, null) }))));
+/** A stored ledger submission result. Rows written before the HashScan fix carry a broken link, so it is rebuilt from the timestamp. */
+const ledgerResult = (raw: string | null) => {
+  const r = json<({ topic: string; consensusTimestamp?: string } & Record<string, unknown>) | null>(raw, null);
+  return r?.topic ? { ...r, url: hcsMessageUrl(r.topic, r.consensusTimestamp) } : r;
+};
+
+consoleApi.get('/disputes', (c) => c.json(listDisputes().map((d) => ({ ...d, ref: `DSP-${d.seq}`, ledger_open: ledgerResult(d.ledger_open), ledger_resolve: ledgerResult(d.ledger_resolve) }))));
 consoleApi.post('/disputes', async (c) => {
   try {
     const b = await c.req.json<{ kind: 'challenge' | 'appeal'; fingerprint: string; evidence: string; submitter?: string }>();
@@ -600,7 +606,7 @@ consoleApi.get('/log', (c) => {
   if (c.req.query('lab') !== '1') where.push('lab = 0');
   const rows = all(`SELECT seq, ts, kind, ref, summary, hash, prev_hash, anchor_id FROM audit_log WHERE ${where.join(' AND ')} ORDER BY seq DESC LIMIT ?`, ...params, Math.min(500, q(c.req.query('limit'), 100)));
   const anchors = all('SELECT * FROM anchors ORDER BY ts DESC LIMIT 50');
-  return c.json({ items: rows, anchors: anchors.map((a) => ({ ...(a as object), url: (a as { topic: string | null; seq: number | null }).topic ? `${hashscan('topic', String((a as { topic: string }).topic))}/message/${(a as { seq: number }).seq}` : null })), orgTopic: config.hedera.orgTopic || null });
+  return c.json({ items: rows, anchors: anchors.map((a) => ({ ...(a as object), url: (a as { topic: string | null }).topic ? hcsMessageUrl(String((a as { topic: string }).topic), (a as { consensus_ts: string | null }).consensus_ts) : null })), orgTopic: config.hedera.orgTopic || null });
 });
 consoleApi.get('/log/verify', (c) => c.json(verifyLogChain()));
 consoleApi.get('/log/:seq/proof', (c) => {

@@ -12,7 +12,7 @@ import {
 } from '@hashgraph/hedera-agent-kit/plugins';
 import { Client } from '@hiero-ledger/sdk';
 import type { z } from 'zod/v4';
-import { config, hashscan } from './config';
+import { config, hashscan, hcsMessageUrl } from './config';
 
 /**
  * Ask Zoro reads the Hedera ledger through the Hedera Agent Kit's query plugins. Read-only by construction:
@@ -162,11 +162,8 @@ export const LEDGER_CITATION = /\[(hcs:\d+\.\d+\.\d+#\d+|(?:topic|token|account)
 export function ledgerLink(ref: string, seen?: SeenMessages): string | null {
   const [kind, id] = [ref.slice(0, ref.indexOf(':')), ref.slice(ref.indexOf(':') + 1)];
   if (kind === 'hcs') {
-    // HashScan has no page per topic message: a message is shown as the transaction at its consensus timestamp.
-    // Without the timestamp, link the topic itself.
     const [topic, seq] = id.split('#');
-    const ts = seen?.get(`${topic}#${seq}`);
-    return ts ? hashscan('transaction', ts) : hashscan('topic', topic);
+    return hcsMessageUrl(topic, seen?.get(`${topic}#${seq}`));
   }
   if (kind === 'topic' || kind === 'token' || kind === 'account') return hashscan(kind, id);
   if (kind === 'tx') return hashscan('transaction', mirrorTransactionId(id));

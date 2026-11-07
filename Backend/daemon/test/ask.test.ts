@@ -97,6 +97,14 @@ describe('Ask Zoro scope', () => {
     expect(r.links).toEqual({ 'hcs:0.0.5005#7': 'https://hashscan.io/testnet/transaction/1793965357.951694078' });
   });
 
+  it('links a cited ledger message it did not read in this conversation through the gateway’s copy of the feed', async () => {
+    const { run } = await import('../src/db');
+    run('INSERT OR IGNORE INTO public_events(topic, seq, consensus_ts, payload, type, fp, lab, valid) VALUES(?,?,?,?,?,?,?,?)', '0.0.6006', 3, '1793900000.000000003', '{}', 'seal.revoked', '0xdef', 0, 1);
+    mockProvider([{ content: JSON.stringify({ in_scope: true, reason: 'ledger' }) }, { content: 'It was revoked in [hcs:0.0.6006#3], and [hcs:0.0.6006#4] is unknown.' }]);
+    const r = await askZoro('When was it revoked?');
+    expect(r.links).toEqual({ 'hcs:0.0.6006#3': 'https://hashscan.io/testnet/transaction/1793900000.000000003', 'hcs:0.0.6006#4': 'https://hashscan.io/testnet/topic/0.0.6006' });
+  });
+
   it('never calls the provider for an empty question', async () => {
     const sent = mockProvider([]);
     const r = await askZoro('   ');

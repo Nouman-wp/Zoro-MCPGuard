@@ -12,7 +12,7 @@ import {
   TopicId,
   TopicMessageSubmitTransaction,
 } from '@hashgraph/sdk';
-import { chainConfig, hashscan, mirrorBase } from './config';
+import { chainConfig, hcsMessageUrl, mirrorBase } from './config';
 
 let client: Client | null = null;
 let operatorKey: PrivateKey | null = null;
@@ -51,7 +51,7 @@ export async function submitTopicMessage(topic: string, message: string): Promis
   const ts = record.consensusTimestamp;
   const consensusTimestamp = `${ts.seconds.toString()}.${String(ts.nanos.toString()).padStart(9, '0')}`;
   const transactionId = resp.transactionId.toString();
-  return { topic, sequence, consensusTimestamp, transactionId, url: `${hashscan('topic', topic)}/message/${sequence}` };
+  return { topic, sequence, consensusTimestamp, transactionId, url: hcsMessageUrl(topic, consensusTimestamp) };
 }
 
 export async function createTopic(memo: string): Promise<string> {

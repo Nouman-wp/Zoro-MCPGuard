@@ -226,7 +226,14 @@ export async function askZoro(question: string, history: { role: 'user' | 'assis
   const records = answer.match(/\[(INC-\d+|APR-\d+|call:[\w-]+|tool:[\w.-]+\/[\w.-]+|rule:[\w.-]+)\]/g) ?? [];
   const ledger = answer.match(LEDGER_CITATION) ?? [];
   const citations = [...new Set([...records, ...ledger])].map((c) => c.slice(1, -1));
-  const links = Object.fromEntries(ledger.map((c) => [c.slice(1, -1), ledgerLink(c.slice(1, -1), seenMessages)]).filter((e): e is [string, string] => Boolean(e[1])));
+  // Messages cited but not read in this conversation: take the consensus timestamp from the gateway's copy of the public feed.
+  for (const ref of citations) {
+    const m = ref.match(/^hcs:(\d+\.\d+\.\d+)#(\d+)$/);
+    if (!m || seenMessages.has(`${m[1]}#${m[2]}`)) continue;
+    const ts = get<{ consensus_ts: string }>('SELECT consensus_ts FROM public_events WHERE topic = ? AND seq = ?', m[1], Number(m[2]))?.consensus_ts;
+    if (ts) seenMessages.set(`${m[1]}#${m[2]}`, ts);
+  }
+  const links =Object.fromEntries(ledger.map((c) => [c.slice(1, -1), ledgerLink(c.slice(1, -1), seenMessages)]).filter((e): e is [string, string] => Boolean(e[1])));
   return { answer: answer || 'I could not find an answer in your records.', citations, proposals, model, links };
 }
 

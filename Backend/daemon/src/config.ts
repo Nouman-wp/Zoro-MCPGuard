@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { ENV_PATH, chainConfig, dataDir } from '@zoro/blockchain/config';
 
 // Chain settings, explorer links and the shared data directory come from the Blockchain package.
-export { ENV_PATH, REPO_ROOT, ensAppUrl, etherscanBase, hashscan, isEnsConfigured, isHederaConfigured, mirrorBase } from '@zoro/blockchain/config';
+export { ENV_PATH, REPO_ROOT, ensAppUrl, etherscanBase, hashscan, hcsMessageUrl, isEnsConfigured, isHederaConfigured, mirrorBase } from '@zoro/blockchain/config';
 
 loadEnv({ path: ENV_PATH, quiet: true });
 

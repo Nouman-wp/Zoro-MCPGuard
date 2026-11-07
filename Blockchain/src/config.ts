@@ -61,6 +61,12 @@ export const chainConfig = {
 export const mirrorBase = () =>
   chainConfig.hedera.mirrorUrl || `https://${chainConfig.hedera.network === 'mainnet' ? 'mainnet-public' : chainConfig.hedera.network}.mirrornode.hedera.com`;
 export const hashscan = (kind: 'topic' | 'transaction' | 'token' | 'account', id: string) => `https://hashscan.io/${chainConfig.hedera.network}/${kind}/${id}`;
+/**
+ * HashScan link to one topic message. HashScan has no page per topic message (`/topic/<id>/message/<seq>` is a 404): a
+ * message is shown as the transaction at its consensus timestamp. Without the timestamp, link the topic itself.
+ */
+export const hcsMessageUrl = (topic: string, consensusTimestamp?: string | null) =>
+  consensusTimestamp ? hashscan('transaction', consensusTimestamp) : hashscan('topic', topic);
 export const etherscanBase = () => (chainConfig.ens.network === 'mainnet' ? 'https://etherscan.io' : 'https://sepolia.etherscan.io');
 export const ensAppUrl = (name: string) => `${chainConfig.ens.network === 'mainnet' ? 'https://app.ens.domains' : 'https://sepolia.app.ens.domains'}/${name}`;
 

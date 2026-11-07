@@ -3,7 +3,7 @@ import { streamSSE } from 'hono/streaming';
 import { CANONICALIZATION_VERSION, RULESET_VERSION, RULE_CATALOGUE, ensNamesFor, type VerdictPackage } from '@zoro/core';
 import { approvalRef, decideApproval, getApproval } from '../approvals';
 import { bus, type BusEvent } from '../bus';
-import { VERSION, config, ensAppUrl, etherscanBase, hashscan, isEnsConfigured, isHederaConfigured, mirrorBase } from '../config';
+import { VERSION, config, ensAppUrl, etherscanBase, hashscan, hcsMessageUrl, isEnsConfigured, isHederaConfigured, mirrorBase } from '../config';
 import { latestCorpusRuns } from '../corpus';
 import { all, get, json } from '../db';
 import { completeHumanSeal, startHumanSeal } from '../humanseal';
@@ -47,7 +47,7 @@ publicApi.get('/feed', (c) => {
   const lab = c.req.query('lab') === '1';
   const limit = Math.min(100, Number(c.req.query('limit') ?? 30));
   const rows = all<{ topic: string; seq: number; consensus_ts: string; payload: string; type: string; valid: number }>('SELECT topic, seq, consensus_ts, payload, type, valid FROM public_events WHERE lab = ? ORDER BY consensus_ts DESC LIMIT ?', lab, limit);
-  return c.json({ ledgerConfigured: isHederaConfigured(), events: rows.map((r) => ({ ...r, payload: json(r.payload, {}), url: `${hashscan('topic', r.topic)}/message/${r.seq}` })) });
+  return c.json({ ledgerConfigured: isHederaConfigured(), events: rows.map((r) => ({ ...r, payload: json(r.payload, {}), url: hcsMessageUrl(r.topic, r.consensus_ts) })) });
 });
 
 interface SealListRow {
@@ -89,7 +89,7 @@ const decorate = (s: SealListRow) => {
     links: {
       ens: s.ens_name && s.ens_status === 'written' ? ensAppUrl(s.ens_name) : null,
       ensTx: s.ens_tx ? `${etherscanBase()}/tx/${s.ens_tx}` : null,
-      ledger: s.ledger_topic && s.ledger_seq ? `${hashscan('topic', s.ledger_topic)}/message/${s.ledger_seq}` : null,
+      ledger: s.ledger_topic && s.ledger_seq ? hcsMessageUrl(s.ledger_topic, s.ledger_ts) : null,
       badge: s.badge_token && s.badge_serial ? `${hashscan('token', s.badge_token)}/${s.badge_serial}` : null,
     },
     disputes: get<{ n: number }>('SELECT COUNT(*) AS n FROM disputes WHERE fingerprint = ?', s.fingerprint)?.n ?? 0,
@@ -127,7 +127,7 @@ publicApi.get('/verdict/:fp', (c) => {
     seal: seal ? decorate(seal) : null,
     package: json(audit.package, null),
     definition: json(audit.definition, null),
-    ledger: events.map((e) => ({ ...e, payload: json(e.payload, {}), url: `${hashscan('topic', e.topic)}/message/${e.seq}` })),
+    ledger: events.map((e) => ({ ...e, payload: json(e.payload, {}), url: hcsMessageUrl(e.topic, e.consensus_ts) })),
   });
 });
 
