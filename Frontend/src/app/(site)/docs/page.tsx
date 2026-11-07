@@ -85,7 +85,7 @@ export default function DocsPage() {
             <><b className="font-medium text-quartz">Sentinel</b> — deterministic rules, differential analysis against the last sealed version, AI review (two configurations for high-impact tools), dynamic detonation for Lab servers, and an EIP-191 attestation over the verdict package.</>,
             <><b className="font-medium text-quartz">Registry</b> — ENSv2 on Sepolia. Each server namespace gets its own Permissioned Resolver; the Auditor holds text and link roles, publishers only the descriptive keys. Version names resolve by wildcard and <C>current</C> is a record link.</>,
             <><b className="font-medium text-quartz">Ledger</b> — Hedera Consensus Service topics for public verdicts and Lab records, an organization topic for Merkle commitments over your local audit log, and Hedera Token Service badges burned on revocation.</>,
-            <><b className="font-medium text-quartz">Human Seal</b> — World ID 4.0 proofs requested with RP signatures, bound to an action digest, verified server-side, single use per action.</>,
+            <><b className="font-medium text-quartz">Human Seal</b> — World ID 4.0 Proof of Human requested with RP signatures, bound to one approval and its action digest, verified server-side (including the credential), single use.</>,
           ]}
         />
 
@@ -114,7 +114,7 @@ export default function DocsPage() {
             'WORLD_APP_ID=app_…',
             'WORLD_RP_ID=rp_…',
             'WORLD_SIGNING_KEY=…',
-            'WORLD_ENVIRONMENT=staging      # staging = test identities (World ID Simulator)',
+            'WORLD_ENVIRONMENT=staging      # staging = World ID Simulator; sandbox = World ID Sandbox app; production = World App',
           ].join('\n')}
         />
 
@@ -162,7 +162,7 @@ export default function DocsPage() {
             'Cross-server exfiltration: the data-flow guard labels sources and sinks and holds risky flows for a person.',
             'Poisoned tool output: Output Shield annotates, redacts or blocks instruction-like content.',
             'Forged seals and a compromised auditor: role-restricted registry writes, attestations, ledger cross-checks and public disputes.',
-            'Replayed approvals: Human Seals are bound to an action digest and are single use.',
+            'Replayed or downgraded approvals: Human Seals are bound to one approval and its action digest, are single use, and must be World ID Proof of Human (checked on the server, not in the browser).',
           ]}
         />
 
@@ -183,7 +183,7 @@ export default function DocsPage() {
             'ENS and Hedera receive information about tools — fingerprints, verdicts, hashes, signatures — never your prompts, arguments, results, files or identity.',
             'Your own activity is anchored only as Merkle roots over your local audit log; individual calls are never written onchain.',
             'The AI layer receives public tool definitions. Ask Zoro sends your question and the records it reads to the AI provider only when you use it.',
-            'World ID receives the action digest as the proof signal — never the action itself — and Zoro stores only the nullifier for that action.',
+            'World ID receives the action digest as the proof signal — never the action itself — and Zoro stores only the nullifier for that approval.',
             'Exposure reports are generated entirely on your machine.',
           ]}
         />

@@ -49,6 +49,107 @@ No smart contracts: everything goes through Hedera's native services.
 
 Ask Zoro's ledger access is read-only by construction: only five Agent Kit query tools are loaded (and each must be a query tool), the kit runs in `RETURN_BYTES` mode, and its SDK client has no operator key.
 
+## How Zoro uses World ID (the Human Seal)
+
+Built with IDKit 4 (`@worldcoin/idkit` in the browser, `@worldcoin/idkit-server` and `@worldcoin/idkit-core` in the daemon).
+Code: `Backend/daemon/src/humanseal.ts`, `Frontend/src/components/human-seal.tsx`, tests in `Backend/daemon/test/humanseal.test.ts`.
+
+### The trust moment
+
+An AI agent is about to do something that cannot be taken back: send private data out, sign a transaction, delete a production
+database, weaken Zoro's own protection, or lift a lockdown. Zoro holds the call and needs to know that **a real person approved this
+exact action**. An "Approve" button is not enough: the agent itself, a script or malware on the same computer can click buttons
+and read tokens. They cannot produce a World ID proof from the person's own World App.
+
+### The credential: Proof of Human, and why it is the minimum
+
+Zoro needs two facts and nothing else: a real human approved, and which *distinct* human it was. "Two approvers" must mean two
+people, and an organization seat is one person, so one person with two accounts must count once.
+
+- **Proof of Human** (IDKit `proofOfHuman`, World ID 4.0) proves both, and reveals no name, face or document. Each approval
+  gets a nullifier that is the same for the same person and meaningless anywhere else.
+- **Passport/NFC and Identity Check** would collect identity attributes Zoro has no use for. Knowing *who* someone is does not
+  make an approval safer than knowing it is one unique, verified human.
+- **Selfie Check** is medium assurance. These approvals gate actions that cannot be undone and count distinct approvers, so Zoro
+  takes the strongest uniqueness guarantee available. A device-level credential does not prove a unique human at all.
+
+Zoro also accepts the World ID 3.0 Orb proof as a fallback (`allow_legacy_proofs`), because World App versions and the World ID
+Simulator can still return 3.0 proofs.
+
+### What the server checks
+
+The browser only relays World's proof. Nothing is authorized until the daemon has checked it.
+
+1. **Signs the request.** The daemon signs each request (`rp_context`) with the relying-party signing key, which never reaches the browser.
+2. **Binds the proof to the action.** Every approval gets its own World ID action string. The signal is the action's digest,
+   and the proof's `signal_hash` must match it.
+3. **Asks World.** The proof is forwarded unchanged to `POST https://developer.world.org/api/v4/verify/{rp_id}`, and the
+   environment in World's answer must match.
+4. **Checks the credential.** The credential World verified must be Proof of Human (`proof_of_human`, or `orb` for 3.0).
+   The browser chooses the preset and World's signature does not cover it, so a modified page could ask for a weaker
+   credential and still get a valid proof. The daemon refuses that proof and opens an incident.
+5. **Stores the nullifier once per approval.** A proof cannot be reused, and a second proof from the same person on one
+   approval counts as the same person.
+6. **Approves only its own request.** A verified seal approves only the approval it was started for, and only that exact action, once.
+
+### When it does not work
+
+Every path below leaves the action blocked and is written to the audit log.
+
+| Situation | What Zoro does |
+| --- | --- |
+| The approver cancels, or declines in World App | Recorded as cancelled. The approval stays open for another verified person, or for Deny. |
+| The person has no Proof of Human (`credential_unavailable`) | "This person cannot approve." Nothing runs. |
+| A valid proof from a weaker credential | Refused (`insufficient_credential`), and an incident is opened. |
+| A proof for a different action, or one used before | Refused (`mismatched` or `replay`). A mismatch opens an incident. |
+| World ID is not configured or World's API is unreachable | Fails closed: the action does not run. |
+| The approval window closes first | Expired. |
+
+### Where the Human Seal is required
+
+- risky tool calls held at Approvals: private data leaving, risky transactions, and actions that cannot be undone (Strict profile);
+- weakening policy or switching a server to observe mode;
+- danger-zone actions;
+- lifting a lockdown;
+- joining an organization.
+
+### Try it (about two minutes)
+
+1. Open https://zoro-mcp-guard.vercel.app/lab and launch **Cross-server exfiltration**. A poisoned email tells the agent to
+   mail a private `.env` file to an outside address.
+2. Zoro holds the `send_email` call. Under **Waiting for a person**, click **Approve with Human Seal**, then **Approve with World ID**.
+3. In the World ID window, choose **Use the simulator**, then **Continue**. The live site runs World's staging environment,
+   where the World ID Simulator stands in for World App.
+4. Zoro verifies the proof on its server, and the agent's held call runs once. The timeline reads "A verified human approved
+   this exact call with World ID, so it ran once".
+5. Other path: launch it again and click **Deny** or **Cancel**. The timeline reads "The file contents were not sent".
+
+The lab agent waits 90 seconds for a decision (`ZORO_LAB_APPROVAL_WAIT_SEC`). After that the call is refused, and approving it later runs nothing.
+
+### Environments
+
+Set `WORLD_ENVIRONMENT` in `render.yaml` rather than the Render dashboard, because the next Blueprint sync overwrites dashboard edits.
+
+| `WORLD_ENVIRONMENT` | Who verifies | Notes |
+| --- | --- | --- |
+| `staging` (live demo) | World ID Simulator, https://simulator.worldcoin.org | Test identities. A real World App silently ignores staging requests. |
+| `sandbox` | The World ID Sandbox app (TestFlight or Google Play testing) | Request access in the Developer Portal → World ID Sandbox. |
+| `production` | World App | Real people with Orb-verified World ID. |
+
+### Integration debrief
+
+- **Time to first successful verification:** _owner to fill in before submitting_.
+- **Friction we hit:**
+  1. **Silent failure.** A staging request scanned with the real World App does nothing at all, with no error, which looks like a bug in the site.
+  2. **Preset names.** `orbLegacy` looks like the obvious "Orb" choice but returns only World ID 3.0 proofs. The 4.0 credential is `proofOfHuman`. We shipped `orbLegacy` first.
+  3. **Nullifiers last forever.** World ID gives one person the same nullifier for the same action, always. Deriving the action from the action's digest meant a person could never approve the same command twice. One action per approval, with the digest in the signal, fixed it.
+  4. **The verify API does not check the credential.** It does not confirm that the proof is the credential the app asked for: a page that requests a Device proof gets a valid proof. Every integrator has to check the credential identifier on the server.
+  5. **Unclear test environments.** The docs describe the Simulator (`staging`) and the newer World ID Sandbox (`sandbox`) separately, and do not say how they relate. In our tests the Simulator returns World ID 4.0 proofs and offers a 3.0 toggle. Its Cancel button did not end the request; IDKit only reported a timeout.
+- **Missing capability:** a way to pin the required credential in the signed `rp_context`, so the verify API rejects anything else.
+- **The one improvement with the greatest impact:** credential pinning, because it closes a downgrade every integrator must
+  otherwise remember to block. The close second is World App telling people "this is a test request, use the Simulator"
+  instead of staying silent.
+
 ## Organizations
 
 1. On the Zoro your team can reach (the hosted one), open **Console → Organization**, create the organization and click **Create invite**.

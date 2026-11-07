@@ -108,7 +108,7 @@ services:
       - key: HEDERA_BADGE_TOKEN_ID
         value: 0.0.11329772
 
-      # --- World ID (Human Seal); staging uses test identities from the World ID Simulator ---
+      # --- World ID (Human Seal): staging = World ID Simulator (the live demo); sandbox = World ID Sandbox app; production = World App ---
       - key: WORLD_ENVIRONMENT
         value: staging
       # App and relying-party IDs are public (they are sent to the browser); the signing key is entered in the Dashboard.
