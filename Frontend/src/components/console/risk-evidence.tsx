@@ -39,7 +39,7 @@ export function RiskEvidenceBlock({ evidence }: { evidence: RiskEvidence | null 
             <div key={i} className="mt-1.5">
               <p className="text-[14px] text-quartz">{s.reason}</p>
               {s.blastRadius && <p className="text-[13px] text-mist">Blast radius: {s.blastRadius}</p>}
-              <p className="mt-1 break-all rounded-md bg-abyss px-2 py-1 font-mono text-[12px] text-code-str">{s.evidence.slice(0, 300)}</p>
+              <p className="mt-1 break-all rounded-md bg-abyss px-2 py-1 font-mono text-[12px] text-quartz">{s.evidence.slice(0, 300)}</p>
             </div>
           ))}
         </div>

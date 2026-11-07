@@ -179,7 +179,7 @@ export function HumanSealModal({ approval, open, onClose, mode = 'console', onDo
         </div>
         <div className="rounded-[10px] border border-inkline bg-deep-sea p-3">
           <p className="text-[12px] text-ash">Action digest — the proof is bound to this exact value and works once</p>
-          <p className="mt-1 break-all font-mono text-[12px] text-code-str">{approval.digest}</p>
+          <p className="mt-1 break-all font-mono text-[12px] text-quartz">{approval.digest}</p>
           <p className="mt-2 text-[12px] text-ash">Approval window closes {fmtDate(approval.expires_at)}</p>
           {(approval.approvers_required ?? 1) > 1 && (
             <p className="mt-1 text-[12px] text-ash">
