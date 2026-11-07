@@ -1,161 +1,257 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens, measured from agentql.com (October 2026): a near-black ground, surfaces lifted by tone rather
- * than lines, navy reserved for code panels, and colour only in the glows behind product fragments.
- * Token names are kept from the first version so every page re-skins from here.
+ * Zoro design system, inspired by the ETHGlobal style (no ETHGlobal assets, logo or copy are used):
+ * a light grey ground, white cards with a 1px ink border, black rounded buttons, a yellow call to action, outlined
+ * pill tags and pastel fills. Each sponsor track owns one pastel: ENS mint, World ID lavender, Hedera peach.
+ *
+ * The :root variables are the single source of truth. Tailwind colour names (bg-abyss, text-ash, border-obsidian…)
+ * map onto them in @theme below, so every page follows. Components never hard-code colours.
+ * Green, amber and red remain reserved for security states (sealed / allowed, ask / pending, blocked / unsafe).
  */
+:root {
+  color-scheme: light;
+
+  /* Ground and surfaces */
+  --bg: #f4f4f5; /* page */
+  --bg-elevated: #ffffff; /* nav, alternating sections */
+  --surface: #ffffff; /* cards, panels */
+  --surface-sunken: #ffffff; /* modals, popovers, fields */
+  --card-top: #ffffff;
+  --card-bottom: #ffffff;
+
+  /* Lines */
+  --border: #d4d4d8; /* dividers, inputs */
+  --border-subtle: #e4e4e7; /* row rules */
+  --border-strong: #0a0a0a; /* cards, pills, outlined buttons */
+
+  /* Ink and accent */
+  --ink: #0a0a0a; /* primary buttons */
+  --on-ink: #ffffff;
+  --accent: #21294c; /* navy: links, active nav, second half of headings */
+  --accent-bright: #2f3a6e; /* hover, link text on white */
+  --accent-deep: #161b33;
+  --accent-cyan: #2f3a6e; /* old "live" accent now follows navy */
+  --accent-glow: rgba(33, 41, 76, 0.18);
+  --accent-tint: #ebecf7; /* selected rows, highlighted surfaces */
+  --accent-tint-edge: #c9ccf8;
+  --on-accent: #ffffff;
+
+  /* Pastels: decoration and track identity */
+  --mint: #b7ead5; /* ENS */
+  --mint-soft: #dcfce7;
+  --lavender: #c9ccf8; /* World ID */
+  --lavender-soft: #ebecfd;
+  --peach: #fbe4c4; /* Hedera */
+  --peach-soft: #fdf2e2;
+  --pink: #f3afc6;
+  --pink-soft: #fbe3ec;
+  --cta: #ffc750; /* main call to action */
+  --on-pastel: #0a0a0a;
+
+  /* Text */
+  --text: #0a0a0a; /* headings */
+  --text-soft: #262626; /* body on cards */
+  --text-muted: #474747; /* body */
+  --text-dim: #6b6b6e; /* captions, eyebrows, placeholders (5:1 on the ground) */
+  --text-faint: #a1a1aa; /* decoration only */
+
+  /* Security states (never decoration) */
+  --ok: #0d7a50;
+  --ok-bg: #dcfce7;
+  --warn: #935f00;
+  --warn-bg: #fdf1d9;
+  --danger: #c22a38;
+  --danger-bg: #fde6e8;
+  --neutral-state: #5f6470;
+
+  /* Code (stays dark, as developer sites show code) */
+  --code-bg: #111322;
+  --code-edge: #262a40;
+  --code-text: #e4e6f0;
+  --code-gutter: #6c7290;
+  --code-key: #c9ccf8;
+  --code-str: #b7ead5;
+  --code-num: #fbe4c4;
+
+  /* Effects */
+  --overlay: #0a0a0a; /* hairlines and hover fills via opacity */
+  --scrim: rgba(10, 10, 10, 0.4);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-md: 0 2px 10px rgba(10, 10, 10, 0.06);
+  --shadow-xl: 0 16px 40px -12px rgba(10, 10, 10, 0.18);
+  --shadow-float: 0 20px 40px -16px rgba(10, 10, 10, 0.2);
+  --shadow-glow: 0 0 0 3px var(--accent-tint-edge);
+  --cta-ink: #0a0a0a;
+
+  --t-press: 140ms;
+  --t-hover: 180ms;
+  --t-ui: 240ms;
+
+  /* Intro trailer: the same light pastel world in both themes (soft grey ground, navy ink, periwinkle accent). */
+  --intro-ink: #f1f3f6; /* ground */
+  --intro-mid: #e7eafd; /* lavender wash */
+  --intro-light: #4b5ce0; /* accent: kicker text, highlights, progress */
+  --intro-text: #21294c; /* navy body text */
+  --intro-sky: #acdff6;
+  --intro-mint: #b7ead5;
+  --intro-pink: #f2b3e5;
+  --intro-butter: #eef582;
+
+  /* Newspaper pages (same in both themes): aged newsprint, ink, and a navy ink stamp. */
+  --paper: #f2ead8;
+  --paper-shade: #e4d9c1;
+  --paper-ink: #1b1a17;
+  --paper-muted: #4a4540;
+  --paper-rule: #2a2723;
+  --stamp: #23307a;
+}
+
+/* Dark variant: navy ground, same pastels used as fills with dark text. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0e1120;
+  --bg-elevated: #121629;
+  --surface: #161a2e;
+  --surface-sunken: #121629;
+  --card-top: #161a2e;
+  --card-bottom: #161a2e;
+  --border: #2c3352;
+  --border-subtle: #222842;
+  --border-strong: #f4f4f5;
+  --ink: #f4f4f5;
+  --on-ink: #0a0a0a;
+  --accent: #c9ccf8;
+  --accent-bright: #dfe1fc;
+  --accent-deep: #a9aef2;
+  --accent-cyan: #c9ccf8;
+  --accent-glow: rgba(201, 204, 248, 0.2);
+  --accent-tint: #23294a;
+  --accent-tint-edge: #3d4675;
+  --on-accent: #0a0a0a;
+  --text: #f4f4f5;
+  --text-soft: #dcdde4;
+  --text-muted: #b4b6c4;
+  --text-dim: #9093a6;
+  --text-faint: #4a4f6a;
+  --ok: #4ade80;
+  --ok-bg: #12301f;
+  --warn: #fbbf24;
+  --warn-bg: #33270d;
+  --danger: #f87171;
+  --danger-bg: #3a1619;
+  --neutral-state: #a1a5b8;
+  --code-bg: #0a0c18;
+  --code-edge: #262a40;
+  --overlay: #ffffff;
+  --scrim: rgba(4, 6, 14, 0.6);
+  --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 16px 40px -12px rgba(0, 0, 0, 0.55);
+  --shadow-float: 0 20px 40px -16px rgba(0, 0, 0, 0.6);
+}
+
+/* Tailwind colour names. Older names point at the new roles. */
 @theme {
-  --color-void: #08090a; /* nav, footer, deepest band */
-  --color-abyss: #0a0b0c; /* page ground */
-  --color-deep-sea: #111216; /* card surface */
-  --color-raised: #16171c; /* nested surface, hover */
-  --color-cobalt: #121a2e; /* highlighted surface (selected, spotlight) */
-  --color-cobalt-edge: #22304f;
-  --color-code: #0c162b; /* code panels: the one navy surface, as on agentql */
-  --color-code-edge: #1a2747;
-  --color-frosted: #8fb0f5; /* links and the accent on data */
-  --color-signal: #4f7fe8;
-  --color-pulse: #305fbd;
-  --color-aurora: #625fff;
-  --color-plasma: #ff7dda;
-  --color-ember: #ff8a4c;
-  --color-teal: #2fd4c4;
-  --color-quartz: #ffffff;
-  --color-ash: #a3a6b4; /* secondary text, 7.6:1 on the ground */
-  --color-mist: #c9cbd3; /* body text on cards */
-  --color-slate: #4a4d57;
-  --color-obsidian: #1e2027; /* control and card outlines */
-  --color-inkline: #17181d; /* row rules, nested outlines */
-  --color-sapphire: #2e3140; /* hover outline */
-  --color-steel: #8b92a8;
-  --color-ghost-edge: #3a3d47;
-  --color-code-key: #ff7dda;
-  --color-code-str: #28b6ff;
-  --color-code-num: #9db6ff;
+  --color-void: var(--bg);
+  --color-abyss: var(--bg);
+  --color-elevated: var(--bg-elevated);
+  --color-deep-sea: var(--surface);
+  --color-raised: var(--surface);
+  --color-cobalt: var(--accent-tint);
+  --color-cobalt-edge: var(--accent-tint-edge);
+  --color-code: var(--code-bg);
+  --color-code-edge: var(--code-edge);
+  --color-code-text: var(--code-text);
+  --color-code-gutter: var(--code-gutter);
+  --color-code-key: var(--code-key);
+  --color-code-str: var(--code-str);
+  --color-code-num: var(--code-num);
+  --color-ink-solid: var(--ink);
+  --color-on-ink: var(--on-ink);
+  --color-accent: var(--accent);
+  --color-accent-bright: var(--accent-bright);
+  --color-accent-deep: var(--accent-deep);
+  --color-cyan: var(--accent-cyan);
+  --color-on-accent: var(--on-accent);
+  --color-cta: var(--cta);
+  --color-cta-ink: var(--cta-ink);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-lavender: var(--lavender);
+  --color-lavender-soft: var(--lavender-soft);
+  --color-peach: var(--peach);
+  --color-peach-soft: var(--peach-soft);
+  --color-pink: var(--pink);
+  --color-pink-soft: var(--pink-soft);
+  --color-on-pastel: var(--on-pastel);
+  --color-frosted: var(--accent-bright);
+  --color-signal: var(--accent);
+  --color-pulse: var(--accent-deep);
+  --color-aurora: var(--accent);
+  --color-plasma: var(--accent-bright);
+  --color-ember: var(--accent);
+  --color-teal: var(--accent-cyan);
+  --color-quartz: var(--text);
+  --color-mist: var(--text-soft);
+  --color-ash: var(--text-muted);
+  --color-steel: var(--text-muted);
+  --color-slate: var(--text-dim);
+  --color-faint: var(--text-dim);
+  --color-obsidian: var(--border);
+  --color-inkline: var(--border-subtle);
+  --color-sapphire: var(--border-strong);
+  --color-ghost-edge: var(--border-strong);
+  --color-ink: var(--overlay);
+  --color-panel: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-field: var(--surface-sunken);
+  --color-control: var(--surface);
+  --color-control-edge: var(--border);
+  --color-control-hover: var(--text-dim);
+  --color-violet-bg: var(--lavender-soft);
+  --color-violet-ink: var(--accent);
+  --color-ember-ink: var(--accent);
+  --color-teal-ink: var(--accent);
+  --color-add-bg: var(--accent-tint);
+  --color-add-ink: var(--accent);
 
-  /* State colours: a hue on a dark tint of itself, never without a text label. */
-  --color-ok: #3fc07a;
-  --color-ok-bg: #12241a;
-  --color-warn: #e3b14f;
-  --color-warn-bg: #2a2212;
-  --color-danger: #f0646a;
-  --color-danger-bg: #2c1618;
-  --color-info: #8fb0f5;
-  --color-info-bg: #131d33;
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--accent);
+  --color-info-bg: var(--accent-tint);
+  --color-pending: var(--neutral-state);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: var(--font-figtree), 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, 'Cascadia Code', monospace;
 
-  --radius-card: 14px;
+  --radius-card: 8px;
   --radius-input: 8px;
 
-  --shadow-md: rgba(0, 0, 0, 0.25) 0px 3px 16px 0px;
-  --shadow-xl: rgba(0, 0, 0, 0.55) 0px 8px 40px 0px;
-  --shadow-float: rgba(0, 0, 0, 0.45) 0px 24px 48px -8px, rgba(0, 0, 0, 0.3) 0px 6px 16px 0px;
-  --shadow-glow: rgba(255, 255, 255, 0.35) 0px 2px 14px 0px;
+  --shadow-md: var(--shadow-md);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-float: var(--shadow-float);
+  --shadow-glow: var(--shadow-glow);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
 }
 
-/* Tokens that only exist so the light theme can redefine them. */
-@theme {
-  --color-ink: #ffffff; /* overlays: hairlines, hover fills, tints (white on dark, black on light) */
-  --color-panel: #121318;
-  --color-sunken: #0f1013;
-  --color-field: #0d0e11;
-  --color-control: #111215;
-  --color-control-edge: #2a2c33;
-  --color-control-hover: #454856;
-  --color-faint: #6f7380;
-  --color-violet-bg: #1d1a4a;
-  --color-violet-ink: #b3b1ff;
-  --color-ember-ink: #e9b39a;
-  --color-teal-ink: #7fe9de;
-  --color-add-bg: #12305e;
-  --color-add-ink: #cfe0ff;
-}
-
-:root {
-  color-scheme: dark;
-  --t-press: 140ms;
-  --t-hover: 180ms;
-  --t-ui: 240ms;
-  --ink-dim-from: #ffffff;
-  --ink-dim-to: #8a8d99;
-  --halftone-dot: rgba(255, 255, 255, 0.16);
-  --card-a: #121319;
-  --card-b: #0e0f13;
-}
-
-/*
- * Light theme: the same roles on a cool off-white ground. Product fragments (code panels, the agent window) keep
- * their dark navy, the way developer sites show code on light pages.
- */
-:root[data-theme='light'] {
-  color-scheme: light;
-  --color-void: #eef0f4;
-  --color-abyss: #f6f7f9;
-  --color-deep-sea: #ffffff;
-  --color-raised: #f1f2f5;
-  --color-cobalt: #e9efff;
-  --color-cobalt-edge: #c4d3f7;
-  --color-frosted: #2f5fd0;
-  --color-signal: #2f5fd0;
-  --color-quartz: #0b0c10;
-  --color-ash: #5a5e6b;
-  --color-mist: #343741;
-  --color-slate: #9a9daa;
-  --color-obsidian: #dcdfe6;
-  --color-inkline: #eaecf0;
-  --color-sapphire: #c3c7d1;
-  --color-steel: #687089;
-  --color-ghost-edge: #c6c9d2;
-  --color-ink: #0b0c10;
-  --color-panel: #ffffff;
-  --color-sunken: #ffffff;
-  --color-field: #ffffff;
-  --color-control: #ffffff;
-  --color-control-edge: #d3d6de;
-  --color-control-hover: #a9adba;
-  --color-faint: #8a8d99;
-  --color-violet-bg: #eeedff;
-  --color-violet-ink: #4a44c4;
-  --color-ember-ink: #b4532a;
-  --color-teal-ink: #0d7f74;
-  --color-add-bg: #dce7ff;
-  --color-add-ink: #173a8c;
-  --color-ok: #12814f;
-  --color-ok-bg: #e2f5eb;
-  --color-warn: #946400;
-  --color-warn-bg: #fdf2d8;
-  --color-danger: #c42f38;
-  --color-danger-bg: #fde7e8;
-  --color-info: #2f5fd0;
-  --color-info-bg: #e8eefc;
-  --shadow-md: rgba(16, 24, 40, 0.06) 0px 3px 12px 0px;
-  --shadow-xl: rgba(16, 24, 40, 0.12) 0px 12px 40px -8px;
-  --shadow-float: rgba(16, 24, 40, 0.16) 0px 24px 48px -12px, rgba(16, 24, 40, 0.06) 0px 4px 12px 0px;
-  --ink-dim-from: #0b0c10;
-  --ink-dim-to: #9a9daa;
-  --halftone-dot: rgba(20, 24, 40, 0.14);
-  --card-a: #ffffff;
-  --card-b: #fafbfc;
-}
-
 html {
-  background: var(--color-abyss);
+  background: var(--bg);
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--color-abyss);
-  color: var(--color-quartz);
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-sans);
-  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -164,153 +260,74 @@ body {
   html { overscroll-behavior: none; }
 }
 
-::selection {
-  background: rgba(79, 127, 232, 0.4);
-}
+::selection { background: var(--lavender); color: var(--on-pastel); }
 
 h1, h2, h3 { text-wrap: balance; }
 p { text-wrap: pretty; }
 
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.025em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .tabular { font-variant-numeric: tabular-nums; }
 
-/* Two-tone headline, as on agentql: the second line steps back to grey. */
-.ink-dim {
-  background: linear-gradient(180deg, var(--ink-dim-from) 0%, var(--ink-dim-to) 120%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.ink-fade {
-  background: linear-gradient(180deg, var(--ink-dim-from) 30%, color-mix(in oklab, var(--ink-dim-from) 55%, transparent) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Small centred grey uppercase label above a heading. */
+.label-caps {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-/* ---------- Buttons whose fill inverts with the theme ---------- */
+/* Two-tone headings: the second half in navy. `.ink-dim` keeps its old name so every page heading follows. */
+.ink-dim,
+.tone-accent { color: var(--accent); }
+.ink-fade { color: var(--text); }
+.wordmark { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.03em; color: var(--text); }
 
-.btn-primary {
-  background: linear-gradient(180deg, #ffffff, #dcdde2);
-  color: #07080a;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.4);
+/* ---------- Surfaces ---------- */
+
+/* The bordered card: white, 1px ink border, 8px radius. Kept under the old class name until components move over. */
+.chamfer-frame,
+.card-ink {
+  --frame: var(--border-strong);
+  --fill: var(--surface);
+  position: relative;
+  background: var(--fill);
+  border: 1px solid var(--frame);
+  border-radius: var(--radius);
+  transition: border-color var(--t-hover) ease, box-shadow var(--t-hover) ease, transform var(--t-hover) ease;
 }
-.btn-primary:hover { background: linear-gradient(180deg, #ffffff, #eceef2); }
-.btn-ghost {
-  background: var(--color-control);
-  color: var(--color-quartz);
-  border: 1px solid var(--color-control-edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-.btn-ghost:hover { border-color: var(--color-control-hover); background: var(--color-raised); }
-:root[data-theme='light'] .btn-primary {
-  background: linear-gradient(180deg, #23252c, #0b0c10);
-  color: #ffffff;
-  border-color: #0b0c10;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(16, 24, 40, 0.25);
-}
-:root[data-theme='light'] .btn-primary:hover { background: linear-gradient(180deg, #34363f, #15161b); }
-:root[data-theme='light'] .btn-ghost { box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); }
+.chamfer-frame.is-tab { border-radius: var(--radius-lg); }
 
-/* ---------- Card fills, tinted per section, defined for both themes ---------- */
-
-.card-grad { background: linear-gradient(180deg, var(--card-a), var(--card-b)); }
-.card-ember { background: linear-gradient(135deg, #17141a 0%, #0f1015 45%, #0c0d12 100%); }
-.card-teal { background: linear-gradient(180deg, #0f1418, #0c0e12); }
-.card-teal-strong { background: linear-gradient(180deg, #0f1a1c, #0d0f12); }
-.card-blue { background: linear-gradient(120deg, #151a24, #0f1116 55%); }
-.card-violet { background: linear-gradient(180deg, #14131c, #0e0f13); }
-.card-warm { background: linear-gradient(180deg, #17131a, #0e0f13); }
-.wash-1 { background: linear-gradient(135deg, rgba(59, 42, 107, 0.8), #1a1530 55%, #0f1015); }
-.wash-2 { background: linear-gradient(135deg, rgba(20, 82, 79, 0.7), #10222a 55%, #0f1015); }
-.wash-3 { background: linear-gradient(135deg, rgba(29, 58, 138, 0.7), #121a33 55%, #0f1015); }
-.wash-4 { background: linear-gradient(135deg, rgba(90, 42, 90, 0.7), #22152a 55%, #0f1015); }
-:root[data-theme='light'] .card-ember { background: linear-gradient(135deg, #fff1e8 0%, #ffffff 50%, #fbfbfc 100%); }
-:root[data-theme='light'] .card-teal { background: linear-gradient(180deg, #eefaf7, #ffffff); }
-:root[data-theme='light'] .card-teal-strong { background: linear-gradient(180deg, #e6f8f4, #ffffff); }
-:root[data-theme='light'] .card-blue { background: linear-gradient(120deg, #edf2ff, #ffffff 55%); }
-:root[data-theme='light'] .card-violet { background: linear-gradient(180deg, #f3f1ff, #ffffff); }
-:root[data-theme='light'] .card-warm { background: linear-gradient(180deg, #fff3ec, #ffffff); }
-:root[data-theme='light'] .wash-1 { background: linear-gradient(135deg, #ebe6ff, #ffffff 70%); }
-:root[data-theme='light'] .wash-2 { background: linear-gradient(135deg, #dff6f2, #ffffff 70%); }
-:root[data-theme='light'] .wash-3 { background: linear-gradient(135deg, #e3ebff, #ffffff 70%); }
-:root[data-theme='light'] .wash-4 { background: linear-gradient(135deg, #f8e6f6, #ffffff 70%); }
-
-/* ---------- Atmosphere: glows and halftone, behind product fragments only ---------- */
-
-.glow {
-  position: absolute;
-  pointer-events: none;
-  border-radius: 9999px;
-  filter: blur(70px);
-  opacity: 0.55;
-}
-.glow-blue { background: radial-gradient(closest-side, rgba(56, 110, 255, 0.85), rgba(56, 110, 255, 0) 70%); }
-.glow-teal { background: radial-gradient(closest-side, rgba(47, 212, 196, 0.7), rgba(47, 212, 196, 0) 70%); }
-.glow-violet { background: radial-gradient(closest-side, rgba(110, 95, 255, 0.8), rgba(110, 95, 255, 0) 70%); }
-.glow-ember { background: radial-gradient(closest-side, rgba(255, 128, 72, 0.75), rgba(255, 128, 72, 0) 70%); }
-.glow-pink { background: radial-gradient(closest-side, rgba(255, 125, 218, 0.7), rgba(255, 125, 218, 0) 70%); }
-
-.aurora {
-  background-image:
-    radial-gradient(60% 70% at 72% 18%, rgba(56, 100, 255, 0.22), transparent 70%),
-    radial-gradient(30% 40% at 88% 70%, rgba(47, 212, 196, 0.1), transparent 70%),
-    radial-gradient(35% 45% at 12% 95%, rgba(255, 128, 72, 0.08), transparent 70%);
-}
-.aurora-top {
-  background-image: radial-gradient(50% 80% at 50% 115%, rgba(56, 90, 230, 0.35), transparent 70%);
+/* Pastel strip along the bottom of a card (the card footer). */
+.card-foot {
+  border-top: 1px solid var(--border-strong);
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+  color: var(--on-pastel);
 }
 
-/* A field of fine dots that fades in from one edge: agentql's halftone texture. */
-.halftone {
-  background-image: radial-gradient(var(--halftone-dot) 0.9px, transparent 1.1px);
-  background-size: 6px 6px;
-}
-:root[data-theme='light'] .glow { opacity: 0.32; }
-:root[data-theme='light'] .aurora {
-  background-image:
-    radial-gradient(60% 70% at 72% 18%, rgba(70, 110, 255, 0.14), transparent 70%),
-    radial-gradient(30% 40% at 88% 70%, rgba(47, 212, 196, 0.1), transparent 70%),
-    radial-gradient(35% 45% at 12% 95%, rgba(255, 128, 72, 0.08), transparent 70%);
-}
-:root[data-theme='light'] .aurora-top { background-image: radial-gradient(50% 80% at 50% 115%, rgba(70, 100, 240, 0.18), transparent 70%); }
-:root[data-theme='light'] .surface { background: #ffffff; border-color: var(--color-obsidian); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
-:root[data-theme='light'] .spotlight::before { background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(47, 95, 208, 0.06), transparent 45%); }
-:root[data-theme='light'] * { scrollbar-color: #c6c9d2 transparent; }
-:root[data-theme='light'] ::selection { background: rgba(47, 95, 208, 0.2); }
+.card-grad,
+.card-ember, .card-teal, .card-teal-strong, .card-blue, .card-violet, .card-warm,
+.wash-1, .wash-2, .wash-3, .wash-4,
+.surface { background: var(--surface); }
+.surface { border: 1px solid var(--border); }
+.code-surface { background: var(--code-bg); border: 1px solid var(--code-edge); box-shadow: var(--shadow-float); }
 
-/* The theme switch crossfades the whole page (View Transitions), never under reduced motion. */
-::view-transition-old(root),
-::view-transition-new(root) { animation-duration: 0.35s; animation-timing-function: var(--ease-out); }
-.halftone-blue { background-image: radial-gradient(rgba(110, 150, 255, 0.35) 0.9px, transparent 1.1px); background-size: 6px 6px; }
+/* Old decorative layers become quiet: no glows or grid paper in this style. */
+.glow, .aurora, .aurora-top, .halftone, .halftone-blue, .grid-bg, .grid-bg-flat { display: none; }
+
+.notch-tr { position: relative; }
+
 .fade-r { mask-image: linear-gradient(90deg, transparent 10%, black 85%); }
 .fade-l { mask-image: linear-gradient(270deg, transparent 10%, black 85%); }
 .fade-t { mask-image: linear-gradient(0deg, transparent 0%, black 90%); }
 .fade-b { mask-image: linear-gradient(180deg, transparent 0%, black 90%); }
 .fade-radial { mask-image: radial-gradient(closest-side, black 30%, transparent 100%); }
 
-/* Cards with a lit top edge: a tone step plus a 1px highlight, never a glow at rest. */
-.surface {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-.code-surface {
-  background: linear-gradient(180deg, #0f1a33, #0b1428);
-  border: 1px solid var(--color-code-edge);
-  box-shadow: inset 0 1px 0 rgba(140, 170, 255, 0.08), var(--shadow-float);
-}
-
 /* Pointer spotlight on interactive cards: --mx/--my are set by the Spotlight component. */
-.spotlight {
-  position: relative;
-  isolation: isolate;
-}
+.spotlight { position: relative; isolation: isolate; }
 .spotlight::before {
   content: '';
   position: absolute;
@@ -319,44 +336,72 @@ p { text-wrap: pretty; }
   pointer-events: none;
   opacity: 0;
   transition: opacity var(--t-ui) ease;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(120, 150, 255, 0.08), transparent 45%);
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), var(--accent-glow), transparent 45%);
   z-index: -1;
 }
 @media (hover: hover) and (pointer: fine) {
   .spotlight:hover::before { opacity: 1; }
 }
 
-/* Dotted connector between product fragments, with a travelling dot (stops under reduced motion). */
 .connector {
-  background-image: linear-gradient(90deg, rgba(160, 185, 255, 0.45) 50%, transparent 50%);
+  background-image: linear-gradient(90deg, var(--text-faint) 50%, transparent 50%);
   background-size: 6px 1px;
   background-repeat: repeat-x;
   height: 1px;
 }
 .connector-v {
-  background-image: linear-gradient(180deg, rgba(160, 185, 255, 0.45) 50%, transparent 50%);
+  background-image: linear-gradient(180deg, var(--text-faint) 50%, transparent 50%);
   background-size: 1px 6px;
   background-repeat: repeat-y;
   width: 1px;
 }
 
-/* Scrollbars that fit the dark canvas */
+/* ---------- Buttons: rounded, black primary, yellow call to action, outlined secondary ---------- */
+
+.btn-chamfer { border-radius: var(--radius); font-weight: 600; }
+.btn-chamfer:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary { background: var(--ink); color: var(--on-ink); }
+.btn-primary:hover { background: var(--accent); color: var(--on-accent); }
+.btn-cta { background: var(--cta); color: var(--on-pastel); border-radius: 9999px; }
+.btn-cta:hover { filter: brightness(0.95); }
+.btn-secondary, .btn-ghost { border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
+.btn-secondary:hover, .btn-ghost:hover { background: var(--bg); }
+.btn-subtle { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); }
+.btn-subtle:hover { border-color: var(--text-dim); color: var(--text); }
+.btn-danger { background: var(--danger); color: #ffffff; }
+.btn-danger:hover { filter: brightness(1.08); }
+.btn-danger-soft { border: 1px solid color-mix(in oklab, var(--danger) 45%, transparent); background: var(--danger-bg); color: var(--danger); }
+.btn-danger-soft:hover { border-color: var(--danger); }
+
+/* Hover for linked cards: lift slightly. */
+.tabcard:hover { transform: translateY(-2px); box-shadow: var(--shadow-xl); }
+.tabcard .tabcard-icon { transition: color var(--t-hover) ease; }
+
+/* Call-to-action panel: a pastel block with an ink border. */
+.cta-panel {
+  background: var(--lavender);
+  color: var(--on-pastel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a2d36 transparent;
+  scrollbar-color: var(--text-faint) transparent;
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-frosted);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Native selects stay readable in Windows dark mode. */
-select, option { background-color: var(--color-abyss); color: var(--color-quartz); }
+select, option { background-color: var(--surface); color: var(--text); }
+
+/* ---------- Motion ---------- */
 
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
@@ -383,7 +428,151 @@ select, option { background-color: var(--color-abyss); color: var(--color-quartz
 .marquee { animation: marquee 48s linear infinite; }
 .marquee-host:hover .marquee { animation-play-state: paused; }
 
-@media (prefers-reduced-motion: reduce) {
-  .pulse-dot, .slide-in, .travel-dot, .marquee { animation: none; }
-  .spotlight::before { transition: none; }
+@keyframes float-y {
+  0%, 100% { transform: translateY(-6px); }
+  50% { transform: translateY(6px); }
 }
+.float-y { animation: float-y 6s ease-in-out infinite; }
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.cursor-blink { animation: blink 1s steps(1) infinite; }
+
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 0.35s; animation-timing-function: var(--ease-out); }
+
+/* Section backdrops: drifting pastel tiles and flowing dotted paths, kept to the edges. */
+.backdrop {
+  opacity: 0.85;
+  mask-image: radial-gradient(ellipse 62% 70% at 50% 50%, transparent 40%, black 85%);
+}
+.backdrop-tile {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: backdrop-drift 9s ease-in-out infinite alternate;
+}
+@keyframes backdrop-drift {
+  from { transform: translate(0, -10px) rotate(-3deg); }
+  to { transform: translate(6px, 10px) rotate(3deg); }
+}
+.backdrop-path {
+  stroke-dasharray: 2 8;
+  stroke-linecap: round;
+  animation: backdrop-flow 3.2s linear infinite;
+}
+@keyframes backdrop-flow { to { stroke-dashoffset: -40; } }
+.backdrop.is-paused .backdrop-tile,
+.backdrop.is-paused .backdrop-path { animation-play-state: paused; }
+
+/*
+ * Card illustrations. Elements carry an .a-* class; their resting style is the finished "after" state, and the
+ * animation plays the story into it: once when the card scrolls in (.illo.is-on), and on loop while the card is
+ * hovered. Under reduced motion nothing animates and the finished state shows.
+ */
+.illo [class*="a-"] { transform-box: fill-box; transform-origin: center; }
+.illo.is-on .a-slide { animation: illo-slide 1.1s var(--ease-out) both; }
+.illo.is-on .a-pop { animation: illo-pop 0.7s var(--ease-out) both; }
+.illo.is-on .a-fade { animation: illo-fade 0.8s ease both; }
+.illo.is-on .a-draw { stroke-dasharray: 1; animation: illo-draw 1.2s var(--ease-out) both; }
+.illo.is-on .a-travel { animation: illo-travel 1.6s var(--ease-in-out) both; }
+.illo.is-on .a-burn { animation: illo-burn 1.4s ease both; }
+.illo.is-on .a-stamp { animation: illo-stamp 0.6s var(--ease-out) both; }
+.illo.is-on .a-out { animation: illo-out 0.8s ease both; }
+.tabcard:hover .illo .a-slide { animation: illo-slide 1.1s var(--ease-out) infinite alternate; }
+.tabcard:hover .illo .a-pop { animation: illo-pop 0.7s var(--ease-out) infinite alternate; }
+.tabcard:hover .illo .a-fade { animation: illo-fade 0.8s ease infinite alternate; }
+.tabcard:hover .illo .a-draw { stroke-dasharray: 1; animation: illo-draw 1.2s var(--ease-out) infinite alternate; }
+.tabcard:hover .illo .a-travel { animation: illo-travel 1.6s var(--ease-in-out) infinite; }
+.tabcard:hover .illo .a-burn { animation: illo-burn 1.4s ease infinite alternate; }
+.tabcard:hover .illo .a-stamp { animation: illo-stamp 0.6s var(--ease-out) infinite alternate; }
+.tabcard:hover .illo .a-out { animation: illo-out 0.8s ease infinite alternate; }
+.a-draw { stroke-dasharray: 1; stroke-dashoffset: 0; }
+@keyframes illo-slide { from { transform: translateX(-28px); opacity: 0; } }
+@keyframes illo-pop { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.18); opacity: 1; } }
+@keyframes illo-fade { from { opacity: 0; } }
+@keyframes illo-draw { from { stroke-dashoffset: 1; } }
+@keyframes illo-travel { from { transform: translateX(var(--from, -80px)); } }
+@keyframes illo-burn { from { opacity: 1; transform: translateY(0); } }
+@keyframes illo-stamp { from { transform: scale(2.2) rotate(-20deg); opacity: 0; } }
+@keyframes illo-out { from { opacity: 1; } }
+.icon-wiggle { transition: transform var(--t-hover) var(--ease-out), background-color var(--t-hover) ease; }
+.group:hover .icon-wiggle { transform: rotate(-8deg) scale(1.08); }
+
+/* Attack Lab receipts: cream paper with zigzag torn edges top and bottom. */
+.receipt {
+  background: var(--paper);
+  color: var(--paper-ink);
+  -webkit-mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 14px 51% repeat-x,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / 14px 51% repeat-x;
+  mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 14px 51% repeat-x,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / 14px 51% repeat-x;
+}
+.receipt .text-quartz, .receipt dd { color: var(--paper-ink); }
+
+/* Sentinel, the Attack Lab assistant */
+.buddy-blink { transform-box: fill-box; transform-origin: center; transform: scaleY(0); animation: buddy-blink 4.5s infinite; }
+@keyframes buddy-blink { 0%, 92%, 100% { transform: scaleY(0); } 95% { transform: scaleY(1); } }
+.buddy-look { animation: buddy-look 3.2s ease-in-out infinite; }
+@keyframes buddy-look { 0%, 100% { transform: translateX(-6px); } 45%, 55% { transform: translateX(6px); } }
+.buddy-jitter { animation: buddy-jitter 0.35s steps(2) infinite; }
+@keyframes buddy-jitter { 0% { transform: translate(-1px, 1px); } 100% { transform: translate(1px, -1px); } }
+.buddy-spin { transform-box: fill-box; transform-origin: center; animation: buddy-spin 6s linear infinite; }
+@keyframes buddy-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot, .slide-in, .travel-dot, .marquee, .float-y, .cursor-blink, .backdrop-tile, .backdrop-path { animation: none; }
+  .illo [class*="a-"] { animation: none !important; }
+  .buddy-blink, .buddy-look, .buddy-jitter, .buddy-spin { animation: none; }
+  .group:hover .icon-wiggle { transform: none; }
+  .spotlight::before, .chamfer-frame, .card-ink, .tabcard { transition: none; }
+  .tabcard:hover { transform: none; }
+}
+
+/* ---------- Story landing (/story): the verdict palette, dark only (docs/design: colour = verdict) ---------- */
+.story {
+  --night: #070a12; /* ground: protective blue-black */
+  --night-2: #0b1020;
+  --surface: #0e1526;
+  --surface-2: #141e30;
+  --line: #1c2840;
+  --line-strong: #24324d;
+  --text: #f8fafc;
+  --text-2: #94a3b8;
+  --text-3: #7c8ba1;
+  --trust: #3b82f6; /* brand and action */
+  --trust-fill: #2563eb;
+  --scan: #22d3ee; /* being inspected */
+  --unknown: #94a3b8; /* not yet trusted */
+  --seal: #4ade80; /* sealed, only after a verdict */
+  --ask: #fbbf24; /* a person decides */
+  --block: #f87171; /* blocked, tampered */
+  --human: #c4b5fd; /* Human Seal */
+  --ledger: #e2e8f0; /* permanent record */
+  background: var(--night);
+  color: var(--text);
+}
+.story ::selection { background: rgba(34, 211, 238, 0.28); }
+.story-grid {
+  background-image: linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+}
+.story-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
+
+/* Intro: drifting pastel blobs and a soft dot grid. */
+@keyframes intro-blob {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(6vw, -4vh, 0) scale(1.08); }
+  66% { transform: translate3d(-5vw, 5vh, 0) scale(0.95); }
+}
+.intro-blob { position: absolute; border-radius: 9999px; filter: blur(70px); opacity: 0.75; animation: intro-blob 22s ease-in-out infinite; will-change: transform; }
+.intro-dots {
+  background-image: radial-gradient(color-mix(in oklab, var(--intro-text) 16%, transparent) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, #000 35%, transparent 80%);
+}
+@media (prefers-reduced-motion: reduce) { .intro-blob { animation: none; } }
